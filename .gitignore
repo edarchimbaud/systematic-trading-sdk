@@ -1,0 +1,6 @@
+dist
+systematic_trading.egg-info
+.DS_Store
+.coverage*
+.pytest_cache
+*.pyc

@@ -15,7 +15,7 @@ with open(
 ) as handler:
     FUTURES = json.load(handler)
 
-FUTURE_TYPE = "future"
+FUTURE_TYPE = "Future"
 
 LETTERS = ["F", "G", "H", "J", "K", "M", "N", "Q", "U", "V", "X", "Z"]
 

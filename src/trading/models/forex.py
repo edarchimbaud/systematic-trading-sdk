@@ -11,41 +11,6 @@ from ..data.client import Client
 from ..data.constants import FUTURES
 
 
-STOCK_CURRENCIES = [
-    {
-        "Currency": "EUR",
-        "RICSuffix": "AS",
-    },
-    {
-        "Currency": "EUR",
-        "RICSuffix": "BR",
-    },
-    {
-        "Currency": "EUR",
-        "RICSuffix": "DE",
-    },
-    {
-        "Currency": "GBP",
-        "RICSuffix": "L",
-    },
-    {
-        "Currency": "EUR",
-        "RICSuffix": "MC",
-    },
-    {
-        "Currency": "EUR",
-        "RICSuffix": "MI",
-    },
-    {
-        "Currency": "EUR",
-        "RICSuffix": "PA",
-    },
-    {
-        "Currency": "CHF",
-        "RICSuffix": "S",
-    },
-]
-
 
 client = Client()
 

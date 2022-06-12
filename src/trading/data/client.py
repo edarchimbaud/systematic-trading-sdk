@@ -1,6 +1,7 @@
 """
 Client for the API https://marketdata.edarchimbaud.com/api
 """
+from datetime import date
 import os
 
 import pandas as pd
@@ -39,14 +40,14 @@ class Client:
             params={"bucket_name": bucket_name, "action": action},
         )
 
-    def get_daily_borrowing_rates(self, day: str):
+    def get_daily_borrowing_rates(self, day: date):
         """
         Get daily borrowing rates.
 
         Parameters
         ----------
-            day: str
-                Day of the rates to query. Format is YYYY-mm-dd.
+            day: date
+                Day of the rates to query.
 
         Returns
         -------
@@ -60,7 +61,7 @@ class Client:
             f"{self.api_url}/private/daily/borrowing-rates",
             headers=self.headers,
             params={
-                "day": day,
+                "day": day.isoformat(),
             },
         )
         response_json = response.json()
@@ -72,7 +73,7 @@ class Client:
         dfm = dfm.set_index(["Date", "RIC"])
         return dfm, error
 
-    def get_daily_factor(self, path: str, ticker: str, start_date: str, end_date: str):
+    def get_daily_factor(self, path: str, ticker: str, start_date: date, end_date: date):
         """
         Get daily factor.
 
@@ -96,11 +97,11 @@ class Client:
             ticker: str
                 Instrument ticker.
 
-            start_date: str
-                Start date. Format YYYY-mm-dd.
+            start_date: date
+                Start date.
 
-            end_date: str
-                End date. Format YYYY-mm-dd.
+            end_date: date
+                End date.
 
         Returns
         -------
@@ -115,8 +116,8 @@ class Client:
             headers=self.headers,
             params={
                 "ticker": ticker,
-                "start_date": start_date,
-                "end_date": end_date,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
             },
         )
         response_json = response.json()
@@ -128,7 +129,7 @@ class Client:
         dfm = dfm.set_index(["Date", "Stem"])
         return dfm, error
 
-    def get_daily_ohlcv(self, ric: str, start_date: str, end_date: str):
+    def get_daily_ohlcv(self, ric: str, start_date: date, end_date: date):
         """
         Get daily Open High Low Close Volume.
 
@@ -137,11 +138,11 @@ class Client:
             ric: str
                 Instrument RIC.
 
-            start_date: str
-                Start date. Format YYYY-mm-dd.
+            start_date: date
+                Start date.
 
-            end_date: str
-                End date. Format YYYY-mm-dd.
+            end_date: date
+                End date.
 
         Returns
         -------
@@ -156,8 +157,8 @@ class Client:
             headers=self.headers,
             params={
                 "ric": ric,
-                "start_date": start_date,
-                "end_date": end_date,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
             },
         )
         response_json = response.json()
@@ -169,7 +170,7 @@ class Client:
         dfm = dfm.set_index(["Date", "RIC"])
         return dfm, error
 
-    def get_daily_risk_free_rate(self, ric: str, start_date: str, end_date: str):
+    def get_daily_risk_free_rate(self, ric: str, start_date: date, end_date: date):
         """
         Get daily risk free rate.
 
@@ -178,11 +179,11 @@ class Client:
             ric: str
                 Instrument RIC.
 
-            start_date: str
-                Start date. Format YYYY-mm-dd.
+            start_date: date
+                Start date.
 
-            end_date: str
-                End date. Format YYYY-mm-dd.
+            end_date: date
+                End date.
 
         Returns
         -------
@@ -197,8 +198,8 @@ class Client:
             headers=self.headers,
             params={
                 "ric": ric,
-                "start_date": start_date,
-                "end_date": end_date,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
             },
         )
         response_json = response.json()
@@ -210,7 +211,7 @@ class Client:
         dfm = dfm.set_index(["Date", "RIC"])
         return dfm, error
 
-    def get_dataset(self, ticker: str, start_date: str, end_date: str):
+    def get_dataset(self, ticker: str, start_date: date, end_date: date):
         """
         Get dataset of market features and targets.
 
@@ -219,11 +220,11 @@ class Client:
             ticker: str
                 Instrument ticker.
 
-            start_date: str
-                Start date. Format YYYY-mm-dd.
+            start_date: date
+                Start date.
 
-            end_date: str
-                End date. Format YYYY-mm-dd.
+            end_date: date
+                End date.
 
         Returns
         -------
@@ -244,8 +245,8 @@ class Client:
             headers=self.headers,
             params={
                 "ticker": ticker,
-                "start_date": start_date,
-                "end_date": end_date,
+                "start_date": start_date.isoformat(),
+                "end_date": end_date.isoformat(),
             },
         )
         response_json = response.json()

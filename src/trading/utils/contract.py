@@ -189,7 +189,7 @@ def stem_to_ric(contract_rank: int, day: date, stem: str):
 
 
 @ring.lru()
-def get_first_trade_date(ric: str):
+def get_first_trade_date(ric: str) -> date:
     """
     Get the contract first trade date.
 
@@ -225,7 +225,7 @@ def get_first_trade_date(ric: str):
 
 
 @ring.lru()
-def get_last_trade_date(ric: str):
+def get_last_trade_date(ric: str) -> date:
     """
     Get the contract last trade date.
 

@@ -42,6 +42,7 @@ def test_close_future():
     assert broker.positions["Cash"]["USD"] == 999936.4757220994
     assert broker.positions[FUTURE_TYPE][ric] == 0
 
+
 def test_expire_future():
     """
     Test expire_future

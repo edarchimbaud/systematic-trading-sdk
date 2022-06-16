@@ -4,10 +4,10 @@ Margin module.
 from datetime import date
 import numpy as np
 
+from .contract import Contract
 from .forex import Forex
 from .market_data import MarketData
 from ..data.constants import FUTURES
-from ..utils.contract import get_front_contract
 
 
 class Margin:
@@ -20,17 +20,17 @@ class Margin:
         self.forex = Forex()
         self.market_data = MarketData()
 
-    def _adjustment_factor(self, ticker: str, day: date):
+    def __adjustment_factor(self, ticker: str, day: date):
         # update of adjustment factor is done yearly
         key = f"{ticker} {day.year}"
         if key in self.cache:
             return self.cache[key]
-        _, ric = get_front_contract(ticker=ticker, day=day)
+        _, ric = Contract(ticker=ticker, day=day).front_contract
         if not self.market_data.is_trading_day(day=day, ric=ric):
             return np.NaN
         row = self.market_data.bardata(ric=ric, day=day)
         ref_date = self._get_ref_date(ticker=ticker)
-        _, ref_ric = get_front_contract(ticker=ticker, day=ref_date)
+        _, ref_ric = Contract(ticker=ticker, day=ref_date).front_contract
         row_ref = self.market_data.bardata(ric=ref_ric, day=ref_date)
         self.cache[key] = row["Close"][0] / row_ref["Close"][0]
         return self.cache[key]
@@ -62,7 +62,7 @@ class Margin:
         currency = FUTURES[ticker]["Currency"]
         return (
             FUTURES[ticker]["OvernightInitial"]
-            * self._adjustment_factor(ticker=ticker, day=day)
+            * self.__adjustment_factor(ticker=ticker, day=day)
             * self.forex.to_usd(currency, day)
         )
 
@@ -86,6 +86,6 @@ class Margin:
         currency = FUTURES[ticker]["Currency"]
         return (
             FUTURES[ticker]["OvernightMaintenance"]
-            * self._adjustment_factor(ticker=ticker, day=day)
+            * self.__adjustment_factor(ticker=ticker, day=day)
             * self.forex.to_usd(currency, day)
         )

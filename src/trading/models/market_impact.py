@@ -1,8 +1,8 @@
 """
 Market impact access module.
 """
+from .contract import Contract
 from ..data.constants import FUTURES
-from ..utils.contract import ric_to_ticker
 
 DEFAULT_SPREAD = 5e-4
 
@@ -38,5 +38,5 @@ class MarketImpact:
                 Market impact for the instrument.
         """
         if ticker is None:
-            ticker = ric_to_ticker(ric)
+            ticker = Contract(ric=ric).ticker
         return FUTURES.get(ticker, {}).get("Spread", DEFAULT_SPREAD)

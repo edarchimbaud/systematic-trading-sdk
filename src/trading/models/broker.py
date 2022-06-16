@@ -3,12 +3,12 @@ Broker simulator
 """
 import numpy as np
 
+from .contract import Contract
 from .forex import Forex
 from .margin import Margin
-from .market_data import get_future_ohlcv_for_day, MarketData
+from .market_data import MarketData
 from .market_impact import MarketImpact
 from ..data.constants import FUTURES, FUTURE_TYPE
-from ..utils.contract import get_front_contract, get_next_contract, ric_to_ticker
 
 
 COMMISSION_INTERACTIVE_BROKERS_USD = (
@@ -67,7 +67,7 @@ class Broker:
 
     def _apply_market_impact(self, ric, contract_number, execution_price):
         relative_market_impact = self.market_impact.get(ric=ric)
-        ticker = ric_to_ticker(ric)
+        ticker = Contract(ric=ric).ticker
         full_point_value = FUTURES[ticker]["FullPointValue"]
         currency = FUTURES[ticker]["Currency"]
         full_point_value_usd = full_point_value * self.forex.to_usd(currency, self.day)
@@ -99,7 +99,7 @@ class Broker:
             contract_number = np.round(contract_number)
         if contract_number == 0:
             return
-        ticker = ric_to_ticker(ric)
+        ticker = Contract(ric=ric).ticker
         currency = FUTURES[ticker]["Currency"]
         if currency not in self.positions["Cash"]:
             self.positions["Cash"][currency] = 0
@@ -144,7 +144,7 @@ class Broker:
         for _ric, _contract_number in self.positions[FUTURE_TYPE].items():
             if _ric == ric:
                 _contract_number += contract_number
-            ticker = ric_to_ticker(_ric)
+            ticker = Contract(ric=_ric).ticker
             margin = (
                 self.margin.overnight_maintenance_future(ticker, self.day)
                 if _ric != ric
@@ -162,7 +162,7 @@ class Broker:
             return
         total_required_margin = 0
         for _ric, _contract_number in self.positions[FUTURE_TYPE].items():
-            ticker = ric_to_ticker(_ric)
+            ticker = Contract(ric=_ric).ticker
             margin = self.margin.overnight_maintenance_future(ticker, self.day)
             if np.isnan(margin):
                 continue
@@ -182,7 +182,7 @@ class Broker:
         Returns
         -------
         """
-        dfm, _ = get_future_ohlcv_for_day(day=self.day, ric=ric)
+        dfm, _ = self.market_data.get_future_ohlcv_for_day(day=self.day, ric=ric)
         execution_price = (
             dfm.Close[0]
             if not np.isnan(dfm.Close[0])
@@ -205,7 +205,7 @@ class Broker:
         Returns
         -------
         """
-        ticker = ric_to_ticker(ric)
+        ticker = Contract(ric=ric).ticker
         currency = FUTURES[ticker]["Currency"]
         if currency not in self.positions["Cash"]:
             self.positions["Cash"][currency] = 0
@@ -220,7 +220,7 @@ class Broker:
         self.positions[FUTURE_TYPE][ric] = (
             self.positions[FUTURE_TYPE].get(ric, 0) - contract_number
         )
-        ticker = ric_to_ticker(ric)
+        ticker = Contract(ric=ric).ticker
         self.positions["Cash"][currency] += (
             contract_number * execution_price * FUTURES[ticker]["FullPointValue"]
         )
@@ -277,7 +277,7 @@ class Broker:
                 self.previous_close[ric] = close
             else:
                 close = self.previous_close.get(ric, np.NaN)
-            ticker = ric_to_ticker(ric)
+            ticker = Contract(ric=ric).ticker
             full_point_value = FUTURES[ticker]["FullPointValue"]
             currency = FUTURES[ticker]["Currency"]
             full_point_value_usd = full_point_value * self.forex.to_usd(
@@ -314,8 +314,8 @@ class Broker:
         Returns
         -------
         """
-        _, front_ric = get_front_contract(day=self.day, ticker=ticker)
-        _, next_ric = get_next_contract(day=self.day, ticker=ticker)
+        _, front_ric = Contract(day=self.day, ticker=ticker).front_contract
+        _, next_ric = Contract(day=self.day, ticker=ticker).next_contract
         if not self.market_data.is_trading_day(
             day=self.day, ric=front_ric
         ) or not self.market_data.is_trading_day(day=self.day, ric=next_ric):

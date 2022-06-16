@@ -19,5 +19,3 @@ def is_weekend(day: date):
             True if is weekend.
     """
     return day.weekday() in [5, 6]
-
-

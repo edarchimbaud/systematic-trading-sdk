@@ -12,12 +12,35 @@ import pandas as pd
 from tqdm import tqdm
 
 from .broker import Broker
+from .contract import Contract
 from .market_data import MarketData
-from ..utils.contract import get_chain
 from ..utils.dates import is_weekend
 
 
 TWELVE_MONTHS = 250
+
+
+from dataclasses import dataclass
+
+
+# pylint: disable=too-many-instance-attributes
+@dataclass
+class BacktesterParameters:
+    """
+    Backtester parameters.
+    """
+
+    def __init__(self):
+        self.cash = 0
+        self.custom = {}
+        self.end_date = None
+        self.leverage = 1
+        self.live = False
+        self.no_check = False
+        self.plot = True
+        self.suffix = ""
+        self.start_date = None
+        self.tickers = []
 
 
 # pylint:
@@ -124,7 +147,7 @@ class Backtester:
 
     def _has_not_enough_active_contracts(self):
         for ticker in self._params.tickers:
-            active_contracts = get_chain(ticker=ticker, day=self.day)
+            active_contracts = Contract.get_chain(ticker=ticker, day=self.day)
             if active_contracts.shape[0] < 2:
                 return ticker
         return None

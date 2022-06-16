@@ -28,6 +28,7 @@ def test_overnight_initial_future(snapshot):
     dfm = pd.DataFrame(index=index, data=data)
     snapshot.assert_match(dfm.to_string(), "output.yml")
 
+
 def test_overnight_maintenance_future(snapshot):
     """
     Test overnight_maintenance_future
@@ -48,5 +49,3 @@ def test_overnight_maintenance_future(snapshot):
         data.append(row)
     dfm = pd.DataFrame(index=index, data=data)
     snapshot.assert_match(dfm.to_string(), "output.yml")
-
-

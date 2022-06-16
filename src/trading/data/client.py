@@ -1,5 +1,5 @@
 """
-Client for the API https://marketdata.edarchimbaud.com/api
+Client for the API https://marketdata.edarchimbaud.com
 """
 from datetime import date
 import os
@@ -12,11 +12,11 @@ from .constants import LAST_MODIFIED
 
 class Client:
     """
-    Client for the API https://marketdata.edarchimbaud.com/api
+    Client for the API https://marketdata.edarchimbaud.com
     """
 
     def __init__(self):
-        self.api_url = "https://" + os.getenv("DATA_DOMAIN") + "/api"
+        self.api_url = "https://" + os.getenv("DATA_DOMAIN")
         self.headers = {"Authorization": os.getenv("DATA_SECRET_KEY")}
 
     def patch_bucket(self, bucket_name: str, action: str = LAST_MODIFIED):
@@ -73,14 +73,16 @@ class Client:
         dfm = dfm.set_index(["Date", "RIC"])
         return dfm, error
 
-    def get_daily_factor(self, path: str, ticker: str, start_date: date, end_date: date):
+    def get_daily_factor(
+        self, name: str, ticker: str, start_date: date, end_date: date
+    ):
         """
         Get daily factor.
 
         Parameters
         ----------
-            path: str
-                Path of the factor to get. Either:
+            name: str
+                Name of the factor to get. Either:
                     carry/bond
                     carry/commodity
                     carry/currency
@@ -112,7 +114,7 @@ class Client:
                 Error message.
         """
         response = requests.get(
-            f"{self.api_url}/private/daily/factor/{path}",
+            f"{self.api_url}/private/daily/factor/{name}",
             headers=self.headers,
             params={
                 "ticker": ticker,

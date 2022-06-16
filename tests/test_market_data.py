@@ -5,13 +5,13 @@ from datetime import date, timedelta
 
 import pandas as pd
 
+from trading.models.contract import Contract
 from trading.models.market_data import MarketData
-from trading.utils.contract import get_front_contract, get_next_contract
 
 
-def test_get_front_contract(snapshot):
+def test_front_contract(snapshot):
     """
-    Test get_front_contract
+    Test front_contract
     """
     tickers = ["ES", "GC", "ZF"]
     start_date = date(2022, 1, 1)
@@ -24,7 +24,7 @@ def test_get_front_contract(snapshot):
         index.append(day)
         row = {}
         for ticker in tickers:
-            front_ltd, front_ric = get_front_contract(day=day, ticker=ticker)
+            front_ltd, front_ric = Contract(day=day, ticker=ticker).front_contract
             row[f"{ticker}_ric"] = front_ric
             row[f"{ticker}_ltd"] = front_ltd
         data.append(row)
@@ -32,9 +32,9 @@ def test_get_front_contract(snapshot):
     snapshot.assert_match(dfm.to_string(), "output.yml")
 
 
-def test_get_next_contract(snapshot):
+def test_next_contract(snapshot):
     """
-    Test get_next_contract
+    Test next_contract
     """
     tickers = ["ES", "GC", "ZF"]
     start_date = date(2022, 1, 1)
@@ -47,9 +47,9 @@ def test_get_next_contract(snapshot):
         index.append(day)
         row = {}
         for ticker in tickers:
-            front_ltd, front_ric = get_next_contract(day=day, ticker=ticker)
-            row[f"{ticker}_ric"] = front_ric
-            row[f"{ticker}_ltd"] = front_ltd
+            next_ltd, next_ric = Contract(day=day, ticker=ticker).next_contract
+            row[f"{ticker}_ric"] = next_ric
+            row[f"{ticker}_ltd"] = next_ltd
         data.append(row)
     dfm = pd.DataFrame(index=index, data=data)
     snapshot.assert_match(dfm.to_string(), "output.yml")

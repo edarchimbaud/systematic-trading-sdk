@@ -6,9 +6,9 @@ from datetime import date
 from trading.models.forex import Forex
 
 
-def test_get_market_impact():
+def test_to_usd():
     """
-    Test get_front_contract
+    Test to_usd
     """
     forex = Forex()
     assert forex.to_usd(currency="AUD", day=date(2022, 6, 10)) == 0.7053180984624066
@@ -20,5 +20,3 @@ def test_get_market_impact():
     assert forex.to_usd(currency="JPY", day=date(2022, 6, 10)) == 0.7438
     assert forex.to_usd(currency="USD", day=date(2022, 6, 10)) == 1
     assert forex.to_usd(currency="SGD", day=date(2022, 6, 10)) == 0.7201
-
-

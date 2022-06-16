@@ -7,15 +7,15 @@ import os
 
 
 EMPTY = "empty"
-LAST_MODIFIED = "last-modified"
 
 script_path = os.path.abspath(os.path.dirname(__file__))
-with open(
-    os.path.join(script_path, "database-futures.json"), "r", encoding="utf-8"
-) as handler:
+file_path = os.path.join(script_path, "database-futures.json")
+with open(file_path, "r", encoding="utf-8") as handler:
     FUTURES = json.load(handler)
 
 FUTURE_TYPE = "Future"
+
+LAST_MODIFIED = "last-modified"
 
 LETTERS = ["F", "G", "H", "J", "K", "M", "N", "Q", "U", "V", "X", "Z"]
 

@@ -25,13 +25,13 @@ class Margin:
         key = f"{ticker} {day.year}"
         if key in self.cache:
             return self.cache[key]
-        _, ric = Contract(ticker=ticker, day=day).front_contract
-        if not self.market_data.is_trading_day(day=day, ric=ric):
+        contract, _ = Contract(ticker=ticker, day=day).front_contract
+        if not self.market_data.is_trading_day(contract=contract, day=day):
             return np.NaN
-        row = self.market_data.bardata(ric=ric, day=day)
+        row = self.market_data.bardata(contract=contract, day=day)
         ref_date = self._get_ref_date(ticker=ticker)
-        _, ref_ric = Contract(ticker=ticker, day=ref_date).front_contract
-        row_ref = self.market_data.bardata(ric=ref_ric, day=ref_date)
+        ref_contract, _ = Contract(ticker=ticker, day=ref_date).front_contract
+        row_ref = self.market_data.bardata(contract=ref_contract, day=ref_date)
         self.cache[key] = row["Close"][0] / row_ref["Close"][0]
         return self.cache[key]
 

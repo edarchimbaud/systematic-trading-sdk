@@ -80,14 +80,14 @@ class Broker:
         self.positions["Cash"][currency] += market_impact
         return market_impact
 
-    def buy_future(self, ric: str, contract_number: int):
+    def buy_future(self, contract: Contract, contract_number: int):
         """
         Buy future contracts.
 
         Parameters
         ----------
-            ric: str
-                Instrument RIC.
+            contract: Contract
+                Instrument Contract.
 
             contract_number: int
                 Number of contracts to buy.
@@ -99,36 +99,40 @@ class Broker:
             contract_number = np.round(contract_number)
         if contract_number == 0:
             return
-        ticker = Contract(ric=ric).ticker
-        currency = FUTURES[ticker]["Currency"]
+        currency = FUTURES[contract.ticker]["Currency"]
         if currency not in self.positions["Cash"]:
             self.positions["Cash"][currency] = 0
         if np.isnan(self.positions["Cash"][currency]):
             raise ValueError("Cash is nan.", ric, self.day)
-        row = self.market_data.bardata(ric=ric, day=self.day)
+
+        row = self.market_data.bardata(contract=contract, day=self.day)
         if np.isnan(row.Close[0]):
-            raise ValueError("Close is nan.", ric, self.day)
+            raise ValueError("Close is nan.", contract.ric, self.day)
         execution_price = row.Close[0]
-        self.positions[FUTURE_TYPE][ric] = (
-            self.positions[FUTURE_TYPE].get(ric, 0) + contract_number
+        self.positions[FUTURE_TYPE][contract.ric] = (
+            self.positions[FUTURE_TYPE].get(contract.ric, 0) + contract_number
         )
         self.positions["Cash"][currency] -= (
-            contract_number * execution_price * FUTURES[ticker]["FullPointValue"]
+            contract_number
+            * execution_price
+            * FUTURES[contract.ticker]["FullPointValue"]
         )
         commission = self._apply_commission(contract_number)
-        market_impact = self._apply_market_impact(ric, contract_number, execution_price)
-        self._check_initial_margin(ric, contract_number)
+        market_impact = self._apply_market_impact(
+            contract.ric, contract_number, execution_price
+        )
+        self._check_initial_margin(contract.ric, contract_number)
         self.executions.append(
             {
                 **{
                     "Date": self.day.isoformat(),
-                    "Ric": ric,
-                    "Ticker": ticker,
+                    "Ric": contract.ric,
+                    "Ticker": contract.ticker,
                     "Type": "Buy" if contract_number > 0 else "Sell",
                     "ContractNumber": contract_number,
                     "Currency": currency,
                     "ExecutionPrice": execution_price,
-                    "FullPointValue": FUTURES[ticker]["FullPointValue"],
+                    "FullPointValue": FUTURES[contract.ticker]["FullPointValue"],
                     "Commission": commission,
                     "MarketImpact": market_impact,
                 },
@@ -170,7 +174,7 @@ class Broker:
         if total_required_margin > self.nav:
             raise Exception(f"Maintenance margin exceeded {self.day.isoformat()}")
 
-    def expire_future(self, ric):
+    def expire_future(self, contract: Contract):
         """
         Force future expiration closing all positions.
 
@@ -182,22 +186,24 @@ class Broker:
         Returns
         -------
         """
-        dfm, _ = self.market_data.get_future_ohlcv_for_day(day=self.day, ric=ric)
+        dfm, _ = self.market_data.get_future_ohlcv_for_day(
+            contract=contract, day=self.day
+        )
         execution_price = (
             dfm.Close[0]
             if not np.isnan(dfm.Close[0])
             else np.nanmedian(dfm[["Open", "High", "Low"]])
         )
-        return self.close_future(ric, execution_price)
+        return self.close_future(contract=contract, execution_price=execution_price)
 
-    def close_future(self, ric, execution_price=None):
+    def close_future(self, contract: Contract, execution_price=None):
         """
         Close future positions.
 
         Parameters
         ----------
-            ric: str
-                Instrument RIC.
+            contract: Contract
+                Instrument Contract.
 
             execution_price: float | None
                 Execution price of the position closing.
@@ -205,38 +211,40 @@ class Broker:
         Returns
         -------
         """
-        ticker = Contract(ric=ric).ticker
-        currency = FUTURES[ticker]["Currency"]
+        currency = FUTURES[contract.ticker]["Currency"]
         if currency not in self.positions["Cash"]:
             self.positions["Cash"][currency] = 0
         if np.isnan(self.positions["Cash"][currency]):
-            raise ValueError("Cash is nan.", ric, self.day)
+            raise ValueError("Cash is nan.", contract.ric, self.day)
         if execution_price is None:
-            row = self.market_data.bardata(ric=ric, day=self.day)
+            row = self.market_data.bardata(contract=contract, day=self.day)
             if np.isnan(row.Close[0]):
-                raise ValueError("Close is nan.", ric, self.day)
+                raise ValueError("Close is nan.", contract.ric, self.day)
             execution_price = row.Close[0]
-        contract_number = self.positions[FUTURE_TYPE].get(ric, 0)
-        self.positions[FUTURE_TYPE][ric] = (
-            self.positions[FUTURE_TYPE].get(ric, 0) - contract_number
+        contract_number = self.positions[FUTURE_TYPE].get(contract.ric, 0)
+        self.positions[FUTURE_TYPE][contract.ric] = (
+            self.positions[FUTURE_TYPE].get(contract.ric, 0) - contract_number
         )
-        ticker = Contract(ric=ric).ticker
         self.positions["Cash"][currency] += (
-            contract_number * execution_price * FUTURES[ticker]["FullPointValue"]
+            contract_number
+            * execution_price
+            * FUTURES[contract.ticker]["FullPointValue"]
         )
         commission = self._apply_commission(contract_number)
-        market_impact = self._apply_market_impact(ric, contract_number, execution_price)
+        market_impact = self._apply_market_impact(
+            contract.ric, contract_number, execution_price
+        )
         self.executions.append(
             {
                 **{
                     "Date": self.day.isoformat(),
-                    "Ric": ric,
-                    "Ticker": ticker,
+                    "Ric": contract.ric,
+                    "Ticker": contract.ticker,
                     "Type": "Close",
                     "ContractNumber": contract_number,
                     "Currency": currency,
                     "ExecutionPrice": execution_price,
-                    "FullPointValue": FUTURES[ticker]["FullPointValue"],
+                    "FullPointValue": FUTURES[contract.ticker]["FullPointValue"],
                     "Commission": commission,
                     "MarketImpact": market_impact,
                 },
@@ -271,10 +279,11 @@ class Broker:
         for ric, contract_number in self.positions[FUTURE_TYPE].items():
             if contract_number == 0:
                 continue
-            if self.market_data.is_trading_day(ric=ric, day=self.day):
-                row = self.market_data.bardata(ric=ric, day=self.day)
+            contract = Contract(ric=ric)
+            if self.market_data.is_trading_day(contract=contract, day=self.day):
+                row = self.market_data.bardata(contract=contract, day=self.day)
                 close = row.Close[0]
-                self.previous_close[ric] = close
+                self.previous_close[contract.ric] = close
             else:
                 close = self.previous_close.get(ric, np.NaN)
             ticker = Contract(ric=ric).ticker
@@ -314,21 +323,23 @@ class Broker:
         Returns
         -------
         """
-        _, front_ric = Contract(day=self.day, ticker=ticker).front_contract
-        _, next_ric = Contract(day=self.day, ticker=ticker).next_contract
+        front_contract, _ = Contract(day=self.day, ticker=ticker).front_contract
+        next_contract, _ = Contract(day=self.day, ticker=ticker).next_contract
         if not self.market_data.is_trading_day(
-            day=self.day, ric=front_ric
-        ) or not self.market_data.is_trading_day(day=self.day, ric=next_ric):
+            contract=front_contract, day=self.day
+        ) or not self.market_data.is_trading_day(contract=next_contract, day=self.day):
             return None
         closed_contract_number = 0
-        if self.positions[FUTURE_TYPE].get(front_ric, 0) != 0:
-            closed_contract_number += self.close_future(front_ric)
+        if self.positions[FUTURE_TYPE].get(front_contract.ric, 0) != 0:
+            closed_contract_number += self.close_future(contract=front_contract)
 
         if closed_contract_number != 0:
-            self.buy_future(next_ric, closed_contract_number)
-        return next_ric
+            self.buy_future(
+                contract=next_contract, contract_number=closed_contract_number
+            )
+        return next_contract.ric
 
-    def sell_future(self, ric: str, contract_number: int):
+    def sell_future(self, contract: Contract, contract_number: int):
         """
         Sell future contracts.
 
@@ -343,4 +354,4 @@ class Broker:
         Returns
         -------
         """
-        return self.buy_future(ric, -contract_number)
+        return self.buy_future(contract, -contract_number)

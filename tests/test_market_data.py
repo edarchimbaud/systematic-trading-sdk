@@ -24,8 +24,8 @@ def test_front_contract(snapshot):
         index.append(day)
         row = {}
         for ticker in tickers:
-            front_ltd, front_ric = Contract(day=day, ticker=ticker).front_contract
-            row[f"{ticker}_ric"] = front_ric
+            front_contract, front_ltd = Contract(day=day, ticker=ticker).front_contract
+            row[f"{ticker}_ric"] = front_contract.ric
             row[f"{ticker}_ltd"] = front_ltd
         data.append(row)
     dfm = pd.DataFrame(index=index, data=data)
@@ -47,8 +47,8 @@ def test_next_contract(snapshot):
         index.append(day)
         row = {}
         for ticker in tickers:
-            next_ltd, next_ric = Contract(day=day, ticker=ticker).next_contract
-            row[f"{ticker}_ric"] = next_ric
+            next_contract, next_ltd = Contract(day=day, ticker=ticker).next_contract
+            row[f"{ticker}_ric"] = next_contract.ric
             row[f"{ticker}_ltd"] = next_ltd
         data.append(row)
     dfm = pd.DataFrame(index=index, data=data)

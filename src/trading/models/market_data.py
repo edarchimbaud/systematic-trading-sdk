@@ -23,9 +23,9 @@ class MarketData:
     """
 
     def __init__(self):
-        self._client = Client()
+        pass
 
-    def bardata(self, day: date, ric: str = None):
+    def bardata(self, contract: Contract, day: date):
         """
         Get bar data.
 
@@ -42,7 +42,7 @@ class MarketData:
             DataFrame
                 Collected bar data.
         """
-        data, err = self.get_future_ohlcv_for_day(day=day, ric=ric)
+        data, err = self.get_future_ohlcv_for_day(contract=contract, day=day)
         if err:
             raise Exception(err["message"])
         data = data.fillna(value=np.nan)
@@ -55,7 +55,8 @@ class MarketData:
         return data
 
     @lru_cache()
-    def __get_future_ohlcv(self, ric, start_date, end_date):
+    @staticmethod
+    def __get_future_ohlcv(ric, start_date, end_date):
         """
         Get OHLCV data for a future.
 
@@ -77,7 +78,7 @@ class MarketData:
             str
                 Error message.
         """
-        dfm, error = self._client.get_daily_ohlcv(ric, start_date, end_date)
+        dfm, error = Client().get_daily_ohlcv(ric, start_date, end_date)
         if dfm is None:
             return None, error
         dfm.reset_index(drop=False, inplace=True)
@@ -86,14 +87,14 @@ class MarketData:
         dfm.set_index("Date", drop=True, inplace=True)
         return dfm, error
 
-    def get_future_ohlcv_for_day(self, day: date, ric=None):
+    def get_future_ohlcv_for_day(self, contract: Contract, day: date):
         """
         Get OHLCV data for a future and for a specific day.
 
         Parameters
         ----------
-            ric: str
-                RIC of the instrument.
+            contract: Contract
+                Contract of the instrument.
 
             day: date
                 Day to collect data from.
@@ -105,23 +106,25 @@ class MarketData:
             str
                 Error message.
         """
-        first_trade_date = Contract(ric=ric).first_trade_date
-        last_trade_date = Contract(ric=ric).last_trade_date
+        first_trade_date = contract.first_trade_date
+        last_trade_date = contract.last_trade_date
         if (
             first_trade_date is None
             or day < first_trade_date
             or last_trade_date is None
             or day > last_trade_date
         ):
-            message = f"No OHLCV for {ric} on {day.isoformat()}"
+            message = f"No OHLCV for {contract.ric} on {day.isoformat()}"
             return None, {"message": message}
-        dfm, _ = self.__get_future_ohlcv(ric, first_trade_date, last_trade_date)
+        dfm, _ = MarketData.__get_future_ohlcv(
+            contract.ric, first_trade_date, last_trade_date
+        )
         if dfm is not None:
             index = dfm.index == day.isoformat()
             current_day_exists = np.any(index)
             if current_day_exists:
                 return dfm.loc[index, :], None
-        message = f"No OHLCV for {ric} on {day.isoformat()}"
+        message = f"No OHLCV for {contract.ric} on {day.isoformat()}"
         return None, {"message": message}
 
     def get_start_day(self, first_trading_day: date, window: int):
@@ -141,24 +144,20 @@ class MarketData:
             date
                 First day the strategy should be started to be traded.
         """
-        i = 0
-        number_of_business_days = 0
-        while number_of_business_days < window:
-            day = first_trading_day + timedelta(days=-i)
-            is_trading_day = len(get_calendar("NYSE").valid_days(day, day)) == 1
-            if is_trading_day and i > 0:
-                number_of_business_days += 1
-            i += 1
-        return day
+        trading_days = get_calendar("NYSE").valid_days(
+            first_trading_day, first_trading_day + timedelta(days=2 * window)
+        )
+        assert len(trading_days) > window
+        return trading_days[window].date()
 
-    def is_trading_day(self, day: date, ric=None):
+    def is_trading_day(self, contract: Contract, day: date):
         """
         Check is the day is a trading day for this instrument.
 
         Parameters
         ----------
-            ric: str
-                RIC of the instrument.
+            contract: Contract
+                Contract object of the instrument.
 
             day: date
                 Day to check.
@@ -168,10 +167,8 @@ class MarketData:
             bool
                 True is the day is a trading day. Folse otherwise.
         """
-        if ric is None:
-            return False
         try:
-            row = self.bardata(day=day, ric=ric)
+            row = self.bardata(contract=contract, day=day)
         except Exception as exception:
             message = str(exception)
             if "No OHLCV for" in message:
@@ -198,7 +195,7 @@ class MarketData:
             bool
                 True is the future needs to be rolled.
         """
-        front_ltd, front_ric = Contract(day=day, ticker=ticker).front_contract
+        front_contract, front_ltd = Contract(day=day, ticker=ticker).front_contract
         if day + timedelta(days=MAXIMUM_NUMBER_OF_DAYS_BEFORE_EXPIRY) < front_ltd:
             return False
         future = FUTURES.get(ticker, {})
@@ -206,18 +203,17 @@ class MarketData:
             days=future.get("RollOffsetFromReference", -31)
         )
 
-        def is_good_day_to_roll(day):
+        def is_good_day_to_roll(day, front_contract, next_contract):
             return (
                 not is_weekend(day)
-                and self.is_trading_day(day=day, ric=front_ric)
-                and self.is_trading_day(day=day, ric=next_ric)
+                and self.is_trading_day(contract=front_contract, day=day)
+                and self.is_trading_day(contract=next_contract, day=day)
             )
 
         delta = front_ltd - day + roll_offset_from_reference
-        _, next_ric = Contract(day=day, ticker=ticker).front_contract
-        day_to_roll = None
+        next_contract, _ = Contract(day=day, ticker=ticker).front_contract
         for i in range(delta.days, -1, -1):
             _day = day + timedelta(days=i)
-            if is_good_day_to_roll(_day):
+            if is_good_day_to_roll(_day, front_contract, next_contract):
                 return day == _day
         return False

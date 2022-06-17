@@ -69,7 +69,7 @@ def test_get_daily_factor_cot(snapshot):
     dfm, _ = client.get_daily_factor(
         name="cot", ticker="CL", start_date=date(2022, 1, 1), end_date=date(2022, 3, 31)
     )
-    snapshot.assert_match(dfm.to_string(), "output.yml")
+    snapshot.assert_match(dfm.iloc[:800, :].to_string(), "output.yml")
 
 
 def test_get_daily_factor_currency(snapshot):

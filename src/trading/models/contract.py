@@ -33,6 +33,9 @@ class Contract:
         else:
             raise Exception("Contract parameters not properly specified.")
 
+    def __str__(self):
+        return self.ric
+
     def __get_ric_year(self):
         if "^" in self.ric:
             year_3 = self.ric.split("^")[1]
@@ -63,8 +66,7 @@ class Contract:
         """
         if self._active_ric is None:
             is_recent_ric = self.is_recent_ric
-            ric_exists = self.__get_ric_exists_today(self.ric)
-            if is_recent_ric and not ric_exists:
+            if is_recent_ric and not self.__get_ric_exists_today(self.ric):
                 self._active_ric = self.ric.split("^")[0]
             else:
                 self._active_ric = self.ric
@@ -90,12 +92,12 @@ class Contract:
         return is_recent_ric
 
     def __get_contract(self, ticker: str, day: date, contract_rank: int = 0):
-        chain = self.get_chain(ticker=ticker, day=day)
+        chain = Contract(ticker=ticker, day=day).chain
         contract = chain.iloc[contract_rank, :]
         ltd = datetime.strptime(contract.LTD, "%Y-%m-%d").date()
         ric = contract.RIC
         ric = Contract(ric=ric).active_ric
-        return ltd, ric
+        return Contract(ric=ric), ltd
 
     @property
     def front_contract(self):
@@ -207,7 +209,7 @@ class Contract:
                 First trade date.
         """
         if self._first_trade_date is None:
-            chain = self.get_chain(ticker=self.ticker)
+            chain = Contract(ticker=self.ticker, day=START_DATE).chain
             if "^" in self.ric:
                 contracts = chain.loc[chain.RIC == self.ric, "FTD"]
                 if contracts.shape[0] == 0:
@@ -244,7 +246,7 @@ class Contract:
                 Last trade date.
         """
         if self._last_trade_date is None:
-            chain = self.get_chain(ticker=self.ticker)
+            chain = Contract(ticker=self.ticker, day=START_DATE).chain
             if "^" in self.ric:
                 contracts = chain.loc[chain.RIC == self.ric, "LTD"]
                 if contracts.shape[0] == 0:
@@ -264,24 +266,21 @@ class Contract:
                     ),
                 )
                 self._last_trade_date = datetime.strptime(ltd, "%Y-%m-%d").date()
-            return self._last_trade_date
+        return self._last_trade_date
 
     @lru_cache()
     @staticmethod
-    def get_chain(ticker: str, day: date = START_DATE):
+    def __get_expiry_calendar(ticker: str):
+        dfm, err = Client().get_expiry_calendar(ticker)
+        return dfm, err
+
+    @property
+    def chain(self):
         """
         Get the future contract chain for a given ticker, day and minimum time to expiry.
 
         Parameters
         ----------
-            ticker: str
-                Ticker of the contract.
-
-            day: date
-                Day of the contract
-
-            minimum_time_to_expiry: int
-                Minimum time to expiry.
 
         Returns
         -------
@@ -289,15 +288,15 @@ class Contract:
                 Contract chain.
         """
         minimum_time_to_expiry = 0
-        dfm, _ = Client().get_expiry_calendar(ticker)
-        if datetime.strptime(dfm.LTD.iloc[-1], "%Y-%m-%d").date() - day < timedelta(
-            days=minimum_time_to_expiry
-        ):
-            expiry_calendar = FUTURES.get(ticker, {}).get("ExpiryCalendar", "")
+        dfm, _ = Contract.__get_expiry_calendar(self.ticker)
+        if datetime.strptime(
+            dfm.LTD.iloc[-1], "%Y-%m-%d"
+        ).date() - self.day < timedelta(days=minimum_time_to_expiry):
+            expiry_calendar = FUTURES.get(self.ticker, {}).get("ExpiryCalendar", "")
             raise Exception(
-                f"Not enough data for {ticker}. Download expiry data from {expiry_calendar}"
+                f"Not enough data for {self.ticker}. Download expiry data from {expiry_calendar}"
             )
-        index = (dfm.LTD >= day.isoformat()) & (
+        index = (dfm.LTD >= self.day.isoformat()) & (
             dfm.WeTrd == 1
         )  # pylint: disable=no-member
         return dfm.loc[index, :].reset_index(drop=True)  # pylint: disable=no-member

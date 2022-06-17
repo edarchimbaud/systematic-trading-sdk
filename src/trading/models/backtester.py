@@ -147,7 +147,7 @@ class Backtester:
 
     def _has_not_enough_active_contracts(self):
         for ticker in self._params.tickers:
-            active_contracts = Contract.get_chain(ticker=ticker, day=self.day)
+            active_contracts = Contract(ticker=ticker, day=self.day).chain
             if active_contracts.shape[0] < 2:
                 return ticker
         return None

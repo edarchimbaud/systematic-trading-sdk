@@ -145,10 +145,10 @@ class MarketData:
                 First day the strategy should be started to be traded.
         """
         trading_days = get_calendar("NYSE").valid_days(
-            first_trading_day, first_trading_day + timedelta(days=2 * window)
+            first_trading_day - timedelta(days=2 * window), first_trading_day
         )
         assert len(trading_days) > window
-        return trading_days[window].date()
+        return trading_days[-window].date()
 
     def is_trading_day(self, contract: Contract, day: date):
         """

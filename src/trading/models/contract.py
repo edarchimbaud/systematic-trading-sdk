@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 from methodtools import lru_cache
 
 from ..data.client import Client
-from ..data.constants import FUTURES, START_DATE
+from ..data.constants import FUTURES
 
 
 class Contract:
@@ -209,7 +209,7 @@ class Contract:
                 First trade date.
         """
         if self._first_trade_date is None:
-            chain = Contract(ticker=self.ticker, day=START_DATE).chain
+            chain = Contract(ticker=self.ticker, day=date(1990, 1, 1)).chain
             if "^" in self.ric:
                 contracts = chain.loc[chain.RIC == self.ric, "FTD"]
                 if contracts.shape[0] == 0:
@@ -246,7 +246,7 @@ class Contract:
                 Last trade date.
         """
         if self._last_trade_date is None:
-            chain = Contract(ticker=self.ticker, day=START_DATE).chain
+            chain = Contract(ticker=self.ticker, day=date(1990, 1, 1)).chain
             if "^" in self.ric:
                 contracts = chain.loc[chain.RIC == self.ric, "LTD"]
                 if contracts.shape[0] == 0:

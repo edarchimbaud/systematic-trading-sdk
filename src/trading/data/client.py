@@ -2,12 +2,13 @@
 Client for the API https://marketdata.edarchimbaud.com
 """
 from datetime import date
+import io
 import os
 
 import pandas as pd
 import requests
 
-from .constants import LAST_MODIFIED
+LAST_MODIFIED = "last-modified"
 
 
 class Client:
@@ -213,52 +214,6 @@ class Client:
         dfm = dfm.set_index(["Date", "RIC"])
         return dfm, error
 
-    def get_dataset(self, ticker: str, start_date: date, end_date: date):
-        """
-        Get dataset of market features and targets.
-
-        Parameters
-        ----------
-            ticker: str
-                Instrument ticker.
-
-            start_date: date
-                Start date.
-
-            end_date: date
-                End date.
-
-        Returns
-        -------
-            DataFrame
-                Dataset data.
-
-            str
-                Error message.
-        """
-        is_authenticated = bool(os.getenv("DATA_SECRET_KEY"))
-        url = (
-            f"{self.api_url}/private/dataset"
-            if is_authenticated
-            else f"{self.api_url}/public/dataset"
-        )
-        response = requests.get(
-            url,
-            headers=self.headers,
-            params={
-                "ticker": ticker,
-                "start_date": start_date.isoformat(),
-                "end_date": end_date.isoformat(),
-            },
-        )
-        response_json = response.json()
-        error = response_json["error"]
-        data = response_json["data"]
-        if data is None:
-            return None, error
-        dfm = pd.DataFrame.from_dict(data)
-        return dfm, error
-
     def get_expiry_calendar(self, ticker: str, download: bool = False):
         """
         Get expiry calendar.
@@ -320,6 +275,71 @@ class Client:
         data = response_json["data"]
         error = response_json["error"]
         return data, error
+
+    def get_private_dataset(self, ticker: str, day: date):
+        """
+        Get dataset of market features and targets.
+
+        Parameters
+        ----------
+            ticker: str
+                Instrument ticker.
+
+            day: date
+                End date.
+
+        Returns
+        -------
+            DataFrame
+                Dataset data.
+
+            str
+                Error message.
+        """
+        url = f"{self.api_url}/private/dataset"
+        response = requests.get(
+            url,
+            headers=self.headers,
+            params={
+                "ticker": ticker,
+                "day": day.isoformat(),
+            },
+        )
+        response_json = response.json()
+        error = response_json["error"]
+        data = response_json["data"]
+        if data is None:
+            return None, error
+        dfm = pd.DataFrame.from_dict(data)
+        return dfm, error
+
+    def get_public_dataset(self, ticker: str):
+        """
+        Get dataset of market features and targets.
+
+        Parameters
+        ----------
+            ticker: str
+                Instrument ticker.
+
+        Returns
+        -------
+            DataFrame
+                Dataset data.
+
+            str
+                Error message.
+        """
+        url = f"{self.api_url}/public/dataset"
+        response = requests.get(
+            url,
+            headers=self.headers,
+            params={
+                "ticker": ticker,
+            },
+        )
+        dfm = pd.read_csv(io.StringIO(response.content.decode("utf-8")))
+        return dfm, None
 
     def get_tickers(self):
         """

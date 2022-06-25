@@ -93,6 +93,8 @@ class Contract:
 
     def __get_contract(self, ticker: str, day: date, contract_rank: int = 0):
         chain = Contract(ticker=ticker, day=day).chain
+        if chain is None:
+            return None, None
         contract = chain.iloc[contract_rank, :]
         ltd = datetime.strptime(contract.LTD, "%Y-%m-%d").date()
         ric = contract.RIC
@@ -291,6 +293,8 @@ class Contract:
         """
         minimum_time_to_expiry = 0
         dfm, _ = Contract.__get_expiry_calendar(self.ticker)
+        if dfm is None:
+            return None
         if datetime.strptime(
             dfm.LTD.iloc[-1], "%Y-%m-%d"
         ).date() - self.day < timedelta(days=minimum_time_to_expiry):

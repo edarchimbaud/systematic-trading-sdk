@@ -23,6 +23,7 @@ class Event(object):
     """
     Base Event class for event-driven system
     """
+
     @property
     def typename(self):
         return self.type.name
@@ -33,6 +34,7 @@ class LogEvent(Event):
     Log event:
     TODO seperate ErrorEvent
     """
+
     def __init__(self):
         self.event_type = EventType.LOG
         self.timestamp = ""

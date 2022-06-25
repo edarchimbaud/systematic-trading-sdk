@@ -9,7 +9,16 @@ _logger = logging.getLogger(__name__)
 
 
 class StrategyManager(object):
-    def __init__(self, config, broker, order_manager, position_manager, risk_manager, data_board, instrument_meta):
+    def __init__(
+        self,
+        config,
+        broker,
+        order_manager,
+        position_manager,
+        risk_manager,
+        data_board,
+        instrument_meta,
+    ):
         """
         current design: oversees all strategies/traders, check with risk managers before send out orders
         let strategy manager to track strategy position for each strategy, with the help from order manager
@@ -28,45 +37,66 @@ class StrategyManager(object):
         self._position_manager = position_manager
         self._risk_manager = risk_manager
         self._data_board = data_board
-        self._strategy_dict = {}            # sid ==> strategy
-        self._instrument_meta = instrument_meta          # symbol ==> instrument_meta
+        self._strategy_dict = {}  # sid ==> strategy
+        self._instrument_meta = instrument_meta  # symbol ==> instrument_meta
         self._tick_strategy_dict = {}  # sym -> list of strategy
-        self._sid_oid_dict = {0: [], -1: []}    # sid ==> oid list; 0: manual; -1: unknown source
+        self._sid_oid_dict = {
+            0: [],
+            -1: [],
+        }  # sid ==> oid list; 0: manual; -1: unknown source
 
     def load_strategy(self, strat_dict):
-        sid = 1   # 0 is mannual discretionary trade, or not found
+        sid = 1  # 0 is mannual discretionary trade, or not found
         # similar to backtest; strategy sets capital, params, and symbols
         for k, v in strat_dict.items():
             v.id = sid
             sid += 1
             v.name = k
-            if v.name in self._config['strategy'].keys():
-                v.active = self._config['strategy'][v.name]['active']
-                v.set_capital(self._config['strategy'][v.name]['capital'])  # float
-                v.set_params(self._config['strategy'][v.name]['params'])  # dict
-                v.set_symbols(self._config['strategy'][v.name]['symbols'])  # list
+            if v.name in self._config["strategy"].keys():
+                v.active = self._config["strategy"][v.name]["active"]
+                v.set_capital(self._config["strategy"][v.name]["capital"])  # float
+                v.set_params(self._config["strategy"][v.name]["params"])  # dict
+                v.set_symbols(self._config["strategy"][v.name]["symbols"])  # list
 
                 # yaml converts to seconds
-                if 'order_start_time' in self._config['strategy'][v.name].keys():
-                    if isinstance(self._config['strategy'][v.name]['order_start_time'], int):
-                        self._config['strategy'][v.name]['order_start_time'] = str(timedelta(seconds=self._config['strategy'][v.name]['order_start_time']))
-                if 'order_end_time' in self._config['strategy'][v.name].keys():
-                    if isinstance(self._config['strategy'][v.name]['order_end_time'], int):
-                        self._config['strategy'][v.name]['order_end_time'] = str(timedelta(seconds=self._config['strategy'][v.name]['order_end_time']))
+                if "order_start_time" in self._config["strategy"][v.name].keys():
+                    if isinstance(
+                        self._config["strategy"][v.name]["order_start_time"], int
+                    ):
+                        self._config["strategy"][v.name]["order_start_time"] = str(
+                            timedelta(
+                                seconds=self._config["strategy"][v.name][
+                                    "order_start_time"
+                                ]
+                            )
+                        )
+                if "order_end_time" in self._config["strategy"][v.name].keys():
+                    if isinstance(
+                        self._config["strategy"][v.name]["order_end_time"], int
+                    ):
+                        self._config["strategy"][v.name]["order_end_time"] = str(
+                            timedelta(
+                                seconds=self._config["strategy"][v.name][
+                                    "order_end_time"
+                                ]
+                            )
+                        )
 
             self._strategy_dict[v.id] = v
-            self._sid_oid_dict[v.id] = []         # record its orders
+            self._sid_oid_dict[v.id] = []  # record its orders
             for sym in v.symbols:
                 if sym not in self._instrument_meta.keys():
                     # find first digit position
-                    ss = sym.split(' ')
+                    ss = sym.split(" ")
                     for i, c in enumerate(ss[0]):
                         if c.isdigit():
                             break
                     if i < len(ss[0]):
-                        sym_root = ss[0][:i-1]
+                        sym_root = ss[0][: i - 1]
                         if sym_root in self._instrument_meta.keys():
-                            self._instrument_meta[sym] = self._instrument_meta[sym_root]      # add for quick access
+                            self._instrument_meta[sym] = self._instrument_meta[
+                                sym_root
+                            ]  # add for quick access
 
                 if sym in self._tick_strategy_dict:
                     self._tick_strategy_dict[sym].append(v.id)
@@ -75,7 +105,7 @@ class StrategyManager(object):
                 if sym in self._broker.market_data_subscription_reverse_dict.keys():
                     continue
                 else:
-                    _logger.info(f'add {sym}')
+                    _logger.info(f"add {sym}")
                     self._broker.market_data_subscription_reverse_dict[sym] = -1
 
             v.on_init(self, self._data_board, self._instrument_meta)
@@ -118,7 +148,9 @@ class StrategyManager(object):
         self._sid_oid_dict[o.source].append(oid)
         # feedback newborn status
         self._order_manager.on_order_status(o)
-        if o.source in self._strategy_dict.keys():           # in case it is not placed by strategy
+        if (
+            o.source in self._strategy_dict.keys()
+        ):  # in case it is not placed by strategy
             self._strategy_dict[o.source].on_order_status(o)
 
         # 2.b place order
@@ -134,7 +166,7 @@ class StrategyManager(object):
         call strategy cancel to take care of strategy order_manager
         """
         if sid not in self._strategy_dict.keys():
-            _logger.error(f'Cancel strategy can not locate strategy id {sid}')
+            _logger.error(f"Cancel strategy can not locate strategy id {sid}")
         else:
             self._strategy_dict[sid].cancel_all()
 
@@ -149,16 +181,18 @@ class StrategyManager(object):
         TODO: should turn off strategy?
         """
         if sid not in self._strategy_dict.keys():
-            _logger.error(f'Flat strategy can not locate strategy id {sid}')
+            _logger.error(f"Flat strategy can not locate strategy id {sid}")
 
         for sym, pos in self._strategy_dict[sid]._position_manager.positions.items():
             if pos.size != 0:
                 o = OrderEvent()
                 o.full_symbol = sym
                 o.order_size = -pos.size
-                o.source = 0           # mannual flat
-                o.create_time = datetime.now().strftime('%H:%M:%S.%f')
-                self.place_order(o, check_risk=False)         # flat strategy doesnot cehck risk
+                o.source = 0  # mannual flat
+                o.create_time = datetime.now().strftime("%H:%M:%S.%f")
+                self.place_order(
+                    o, check_risk=False
+                )  # flat strategy doesnot cehck risk
 
     def flat_all(self):
         """
@@ -172,8 +206,10 @@ class StrategyManager(object):
                 o.full_symbol = sym
                 o.order_size = -pos.size
                 o.source = 0
-                o.create_time = datetime.now().strftime('%H:%M:%S.%f')
-                self.place_order(o, check_risk=False)        # flat strategy doesnot cehck risk
+                o.create_time = datetime.now().strftime("%H:%M:%S.%f")
+                self.place_order(
+                    o, check_risk=False
+                )  # flat strategy doesnot cehck risk
 
     def on_tick(self, k):
         if k.full_symbol in self._tick_strategy_dict.keys():
@@ -201,7 +237,9 @@ class StrategyManager(object):
         if sid in self._strategy_dict.keys():
             self._strategy_dict[sid].on_order_status(order_event)
         else:
-            _logger.info(f'strategy manager doesnt hold the oid {order_event.order_id} to set status {order_event.order_status}, possibly from outside of the system')
+            _logger.info(
+                f"strategy manager doesnt hold the oid {order_event.order_id} to set status {order_event.order_status}, possibly from outside of the system"
+            )
 
     def on_cancel(self, order_event):
         """
@@ -211,7 +249,9 @@ class StrategyManager(object):
         if sid in self._strategy_dict.keys():
             self._strategy_dict[sid].on_order_status(order_event)
         else:
-            _logger.info(f'strategy manager doesnt hold the oid {order_event.order_id} to cancel, possibly from outside of the system')
+            _logger.info(
+                f"strategy manager doesnt hold the oid {order_event.order_id} to cancel, possibly from outside of the system"
+            )
 
     def on_fill(self, fill_event):
         """
@@ -222,4 +262,6 @@ class StrategyManager(object):
         if sid in self._strategy_dict.keys():
             self._strategy_dict[sid].on_fill(fill_event)
         else:
-            _logger.info(f'strategy manager doesnt hold the oid {fill_event.order_id} to fill, possibly from outside of the system')
+            _logger.info(
+                f"strategy manager doesnt hold the oid {fill_event.order_id} to fill, possibly from outside of the system"
+            )

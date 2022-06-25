@@ -13,6 +13,7 @@ class BacktestBrokerage(BrokerageBase):
     Market order is immediately filled.
     Limit or stop order is saved to _active_orders for next tick
     """
+
     def __init__(self, events_engine, data_board):
         """
         Initialize Backtest Brokerage.
@@ -21,9 +22,11 @@ class BacktestBrokerage(BrokerageBase):
         :param data_board: retrieve latest price from data_board
         """
         self._events_engine = events_engine
-        self._data_board = data_board              # retrieve price against order
+        self._data_board = data_board  # retrieve price against order
         self.orderid = 1
-        self.market_data_subscription_reverse_dict = {}      # market data subscription, to be consistent with live
+        self.market_data_subscription_reverse_dict = (
+            {}
+        )  # market data subscription, to be consistent with live
         self._active_orders = {}
 
     # ------------------------------------ private functions -----------------------------#
@@ -35,16 +38,18 @@ class BacktestBrokerage(BrokerageBase):
         :param fill_price: order fill price
         :param fill_size: order fill size
         """
-        if 'STK' in full_symbol:
-            commission = max(0.005*abs(fill_size), 1)     # per share
-        elif 'FUT' in full_symbol:
-            commission = 2.01 * abs(fill_size)           # per contract
-        elif 'OPT' in full_symbol:
+        if "STK" in full_symbol:
+            commission = max(0.005 * abs(fill_size), 1)  # per share
+        elif "FUT" in full_symbol:
+            commission = 2.01 * abs(fill_size)  # per contract
+        elif "OPT" in full_symbol:
             commission = max(0.7 * abs(fill_size), 1)
-        elif 'CASH' in full_symbol:
+        elif "CASH" in full_symbol:
             commission = max(0.000002 * abs(fill_price * fill_size), 2)
         else:
-            commission = 0.0001 * abs(fill_price * fill_size)       # assume 1bps for all other types
+            commission = 0.0001 * abs(
+                fill_price * fill_size
+            )  # assume 1bps for all other types
 
         return commission
 
@@ -61,14 +66,19 @@ class BacktestBrokerage(BrokerageBase):
         # if sell, limti price > market price > stop price
         # cross if opposite
         # limit: if buy, limit_price >= current_price; if sell, opposite
-        elif (order_event.order_type in [OrderType.LIMIT, OrderType.STOP_LIMIT]) & \
-                (((order_event.order_size > 0) & (order_event.limit_price >= current_price)) |
-                 ((order_event.order_size < 0)&(order_event.limit_price <= current_price))):
+        elif (order_event.order_type in [OrderType.LIMIT, OrderType.STOP_LIMIT]) & (
+            ((order_event.order_size > 0) & (order_event.limit_price >= current_price))
+            | (
+                (order_event.order_size < 0)
+                & (order_event.limit_price <= current_price)
+            )
+        ):
             order_event.order_status = OrderStatus.FILLED
         # stop: if buy, stop_price <= current_price; if sell, opposite
-        elif (order_event.order_type in [OrderType.STOP, OrderType.STOP_LIMIT]) & \
-                (((order_event.order_size > 0) & (order_event.stop_price <= current_price)) |
-                 ((order_event.order_size < 0) & (order_event.stop_price >= current_price))):
+        elif (order_event.order_type in [OrderType.STOP, OrderType.STOP_LIMIT]) & (
+            ((order_event.order_size > 0) & (order_event.stop_price <= current_price))
+            | ((order_event.order_size < 0) & (order_event.stop_price >= current_price))
+        ):
             order_event.order_status = OrderStatus.FILLED
 
     # -------------------------------- end of private functions -----------------------------#
@@ -98,7 +108,9 @@ class BacktestBrokerage(BrokerageBase):
         for oid, order_event in self._active_orders.items():
             # this should be after data board is updated
             # current_price = self._data_board.get_last_price(tick_event.full_symbol)      # last price is not updated yet
-            current_price = self._data_board.get_current_price(order_event.full_symbol, timestamp)
+            current_price = self._data_board.get_current_price(
+                order_event.full_symbol, timestamp
+            )
             self._try_cross_order(order_event, current_price)
 
             if order_event.order_status == OrderStatus.FILLED:
@@ -110,8 +122,10 @@ class BacktestBrokerage(BrokerageBase):
                 fill.fill_size = order_event.order_size
                 # TODO: use bid/ask to fill short/long
                 fill.fill_price = current_price
-                fill.exchange = 'BACKTEST'
-                fill.commission = self._calculate_commission(fill.full_symbol, fill.fill_price, fill.fill_size)
+                fill.exchange = "BACKTEST"
+                fill.commission = self._calculate_commission(
+                    fill.full_symbol, fill.fill_price, fill.fill_size
+                )
                 self._events_engine.put(fill)
             else:
                 # Trailing stop; reset stop price, use limit price as trailing amount
@@ -119,14 +133,23 @@ class BacktestBrokerage(BrokerageBase):
                 # if sell, stop price increases when market price increases
                 if order_event.order_type == OrderType.TRAIING_STOP:
                     if order_event.order_size > 0:
-                        order_event.stop_price = min(current_price+order_event.limit_price, order_event.stop_price)
+                        order_event.stop_price = min(
+                            current_price + order_event.limit_price,
+                            order_event.stop_price,
+                        )
                     else:
-                        order_event.stop_price = max(current_price - order_event.limit_price, order_event.stop_price)
+                        order_event.stop_price = max(
+                            current_price - order_event.limit_price,
+                            order_event.stop_price,
+                        )
 
                 _remaining_active_orders_id.append(order_event.order_id)
 
-        self._active_orders = {k : v for k, v in self._active_orders.items ()  if k in _remaining_active_orders_id}
-
+        self._active_orders = {
+            k: v
+            for k, v in self._active_orders.items()
+            if k in _remaining_active_orders_id
+        }
 
     def place_order(self, order_event):
         """
@@ -140,7 +163,9 @@ class BacktestBrokerage(BrokerageBase):
         """
         # current_price = self._data_board.get_last_price(order_event.full_symbol)      # last price is not updated yet
         timestamp = order_event.create_time
-        current_price = self._data_board.get_current_price(order_event.full_symbol, timestamp)
+        current_price = self._data_board.get_current_price(
+            order_event.full_symbol, timestamp
+        )
         self._try_cross_order(order_event, current_price)
 
         if order_event.order_status == OrderStatus.FILLED:
@@ -153,17 +178,20 @@ class BacktestBrokerage(BrokerageBase):
             fill.fill_size = order_event.order_size
             # TODO: use bid/ask to fill short/long
             fill.fill_price = current_price
-            fill.exchange = 'BACKTEST'
-            fill.commission = self._calculate_commission(fill.full_symbol, fill.fill_price, fill.fill_size)
+            fill.exchange = "BACKTEST"
+            fill.commission = self._calculate_commission(
+                fill.full_symbol, fill.fill_price, fill.fill_size
+            )
 
             order_event.order_status = OrderStatus.FILLED
             self._events_engine.put(order_event)
             self._events_engine.put(fill)
         else:
             order_event.order_status = OrderStatus.ACKNOWLEDGED
-            self._active_orders[order_event.order_id] = order_event      # save standing orders
+            self._active_orders[
+                order_event.order_id
+            ] = order_event  # save standing orders
             self._events_engine.put(order_event)
-
 
     def cancel_order(self, order_id):
         """
@@ -181,4 +209,5 @@ class BacktestBrokerage(BrokerageBase):
         :return: next available new order id
         """
         return self.orderid
+
     # ------------------------------- end of public functions -----------------------------#

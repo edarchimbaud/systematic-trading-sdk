@@ -15,19 +15,24 @@ class StrategyBase(metaclass=ABCMeta):
     """
     Base strategy class
     """
+
     def __init__(self):
         """
         initialize trategy
         :param symbols:
         :param events_engine:backtest_event_engine or live_event engine that provides queue_.put()
         """
-        self.id = -1                    # id
-        self.name = ''                  # name
-        self.symbols = []               # symbols interested
-        self.strategy_manager = None     # to place order through strategy_manager
-        self._data_board = None         # to get current data
-        self._position_manager = PositionManager(self.name)    # track local positions and cash
-        self._order_manager = OrderManager(self.name)        # manage local (standing) orders and fills
+        self.id = -1  # id
+        self.name = ""  # name
+        self.symbols = []  # symbols interested
+        self.strategy_manager = None  # to place order through strategy_manager
+        self._data_board = None  # to get current data
+        self._position_manager = PositionManager(
+            self.name
+        )  # track local positions and cash
+        self._order_manager = OrderManager(
+            self.name
+        )  # manage local (standing) orders and fills
 
         self.active = False
         self.initialized = False
@@ -70,14 +75,19 @@ class StrategyBase(metaclass=ABCMeta):
         """
         # for live trading, turn off p&l tick by not calling super.on_tick()
         # for backtest, call super().on_tick() if need to track positions or npv or cash
-        self._position_manager.mark_to_market(tick_event.timestamp, tick_event.full_symbol, tick_event.price, self._data_board)
+        self._position_manager.mark_to_market(
+            tick_event.timestamp,
+            tick_event.full_symbol,
+            tick_event.price,
+            self._data_board,
+        )
 
     def on_order_status(self, order_event):
         """
         on order acknowledged
         :return:
         """
-        #raise NotImplementedError("Should implement on_order_status()")
+        # raise NotImplementedError("Should implement on_order_status()")
         self._order_manager.on_order_status(order_event)
 
     def on_fill(self, fill_event):
@@ -92,10 +102,10 @@ class StrategyBase(metaclass=ABCMeta):
         """
         expect user to set up order type, order size and order price
         """
-        o.source = self.id         # identify source
+        o.source = self.id  # identify source
         if o.create_time is None:
-            o.create_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-        if (self.active):
+            o.create_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
+        if self.active:
             self.strategy_manager.place_order(o)
 
     def adjust_position(self, sym, size_from, size_to, timestamp=None):
@@ -116,15 +126,14 @@ class StrategyBase(metaclass=ABCMeta):
         if timestamp is not None:
             o.create_time = timestamp
 
-        self.place_order (o)
-
+        self.place_order(o)
 
     def cancel_order(self, oid):
         if oid in self._order_manager.standing_order_set:
             self._order_manager.on_cancel(oid)
             self.strategy_manager.cancel_order(oid)
         else:
-            _logger.error(f'Not a standing order to be cancelled, sid {id}, oid {oid}')
+            _logger.error(f"Not a standing order to be cancelled, sid {id}, oid {oid}")
 
     def cancel_all(self):
         """

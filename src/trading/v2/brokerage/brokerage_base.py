@@ -7,6 +7,7 @@ class BrokerageBase(object):
     """
     Brokerage base class
     """
+
     @abstractmethod
     def place_order(self, order_event):
         """"""

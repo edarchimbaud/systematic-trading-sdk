@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 from queue import Empty, Queue
+
 # from multiprocessing import Queue
 from ..event.event import EventType
 from threading import Thread
@@ -39,10 +40,10 @@ class BacktestEventEngine(object):
         """
         _logger.info("Running Backtest...")
         nstep = 0
-        while (self._active):
+        while self._active:
             try:
                 event = self._queue.get(False)
-            except Empty:   # throw good exception
+            except Empty:  # throw good exception
                 if (nSteps == -1) or (nstep < nSteps):
                     try:
                         event = self._datafeed.stream_next()
@@ -61,7 +62,6 @@ class BacktestEventEngine(object):
 
                 except Exception as e:
                     logging.error("Error {0}".format(str(e.args[0])).encode("utf-8"))
-
 
     def put(self, event):
         """

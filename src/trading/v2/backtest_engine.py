@@ -24,23 +24,38 @@ class BacktestEngine(object):
     """
     Event driven backtest engine
     """
+
     def __init__(self, start_date=None, end_date=None):
         self._current_time = None
         self._start_date = start_date
         self._end_date = end_date
         self.config = dict()
-        self.config['strategy'] = dict()       # to be consistent with live; in backtest, strategy is set outside
-        self.instrument_meta = {}              # one copy of meta dict shared across program
+        self.config[
+            "strategy"
+        ] = dict()  # to be consistent with live; in backtest, strategy is set outside
+        self.instrument_meta = {}  # one copy of meta dict shared across program
         self._data_feed = BacktestDataFeed(self._start_date, self._end_date)
         self._data_board = DataBoard()
-        self._performance_manager = PerformanceManager(self.instrument_meta) # send dict pointer
-        self._position_manager = PositionManager('Global')
+        self._performance_manager = PerformanceManager(
+            self.instrument_meta
+        )  # send dict pointer
+        self._position_manager = PositionManager("Global")
         self._position_manager.set_instrument_meta(self.instrument_meta)
-        self._order_manager = OrderManager('Global')
+        self._order_manager = OrderManager("Global")
         self._events_engine = BacktestEventEngine(self._data_feed)
-        self._backtest_brokerage = BacktestBrokerage(self._events_engine, self._data_board)
+        self._backtest_brokerage = BacktestBrokerage(
+            self._events_engine, self._data_board
+        )
         self._risk_manager = PassThroughRiskManager()
-        self._strategy_manager = StrategyManager(self.config, self._backtest_brokerage, self._order_manager, self._position_manager, self._risk_manager, self._data_board, self.instrument_meta)
+        self._strategy_manager = StrategyManager(
+            self.config,
+            self._backtest_brokerage,
+            self._order_manager,
+            self._position_manager,
+            self._risk_manager,
+            self._data_board,
+            self.instrument_meta,
+        )
         self._strategy = None
 
     def set_instrument_meta(self, instrument_meta):
@@ -64,17 +79,17 @@ class BacktestEngine(object):
         :return:
         """
         if data_key not in self.instrument_meta.keys():
-            keys = data_key.split(' ')
+            keys = data_key.split(" ")
             # find first digit position
             for i, c in enumerate(keys[0]):
                 if c.isdigit():
                     break
                 if i < len(keys[0]):
-                    sym_root = keys[0][:i - 1]
+                    sym_root = keys[0][: i - 1]
                     if sym_root in self.instrument_meta.keys():
                         self.instrument_meta[data_key] = self.instrument_meta[sym_root]
 
-        self._data_feed.set_data_source(data_source)          # get iter(datetimeindex)
+        self._data_feed.set_data_source(data_source)  # get iter(datetimeindex)
         self._data_board.initialize_hist_data(data_key, data_source)
         if watch:
             self._performance_manager.add_watch(data_key, data_source)
@@ -96,7 +111,7 @@ class BacktestEngine(object):
         self._position_manager.reset()
 
         ## 5. trade recorder
-        #self._trade_recorder = ExampleTradeRecorder(output_dir)
+        # self._trade_recorder = ExampleTradeRecorder(output_dir)
 
         ## 6. wire up event handlers
         self._events_engine.register_handler(EventType.TICK, self._tick_event_handler)
@@ -110,9 +125,18 @@ class BacktestEngine(object):
 
         # performance update goes before position and databoard updates because it updates previous day performance
         # it can't update today because orders haven't been filled yet.
-        self._performance_manager.update_performance(self._current_time, self._position_manager, self._data_board)
-        self._position_manager.mark_to_market(tick_event.timestamp, tick_event.full_symbol, tick_event.price, self._data_board)
-        self._strategy.on_tick(tick_event)        # plus strategy.position_manager market to marekt
+        self._performance_manager.update_performance(
+            self._current_time, self._position_manager, self._data_board
+        )
+        self._position_manager.mark_to_market(
+            tick_event.timestamp,
+            tick_event.full_symbol,
+            tick_event.price,
+            self._data_board,
+        )
+        self._strategy.on_tick(
+            tick_event
+        )  # plus strategy.position_manager market to marekt
         # data_baord update after strategy, so it still holds price of last tick; for position MtM
         # strategy uses tick.price for current price; and use data_board.last_price for previous price
         # for backtest, this is PLACEHOLDER based on timestamp.
@@ -145,6 +169,12 @@ class BacktestEngine(object):
 
         self._events_engine.run()
         # explicitly update last day/time
-        self._performance_manager.update_performance(self._current_time, self._position_manager, self._data_board)
+        self._performance_manager.update_performance(
+            self._current_time, self._position_manager, self._data_board
+        )
 
-        return self._performance_manager._equity, self._performance_manager._df_positions, self._performance_manager._df_trades
+        return (
+            self._performance_manager._equity,
+            self._performance_manager._df_positions,
+            self._performance_manager._df_trades,
+        )

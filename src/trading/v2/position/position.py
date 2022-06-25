@@ -17,7 +17,7 @@ class Position(object):
         self.size = size
         self.realized_pnl = 0
         self.unrealized_pnl = 0
-        self.account = ''
+        self.account = ""
 
     def get_current_pnl(self):
         return self.realized_pnl, self.unrealized_pnl
@@ -40,37 +40,50 @@ class Position(object):
                 % (parent_name, self.full_symbol, fill_event.full_symbol)
             )
 
-        if self.size > 0:        # existing long
-            if fill_event.fill_size > 0:        # long more
-                self.average_price = (self.average_price * self.size + fill_event.fill_price * fill_event.fill_size
-                                      + fill_event.commission / multiplier) \
-                                     / (self.size + fill_event.fill_size)
-            else:        # flat long
-                #_logger.info(f'{parent_name} flat long realized_pnl {self.realized_pnl}, avg {self.average_price}, fill {fill_event.fill_price}, {fill_event.fill_size}, {multiplier}, {fill_event.commission}')
-                if abs(self.size) >= abs(fill_event.fill_size):   # stay long
-                    self.realized_pnl += (self.average_price - fill_event.fill_price) * fill_event.fill_size \
-                                         * multiplier - fill_event.commission
-                else:   # flip to short
-                    self.realized_pnl += (fill_event.fill_price - self.average_price) * self.size \
-                                         * multiplier - fill_event.commission
+        if self.size > 0:  # existing long
+            if fill_event.fill_size > 0:  # long more
+                self.average_price = (
+                    self.average_price * self.size
+                    + fill_event.fill_price * fill_event.fill_size
+                    + fill_event.commission / multiplier
+                ) / (self.size + fill_event.fill_size)
+            else:  # flat long
+                # _logger.info(f'{parent_name} flat long realized_pnl {self.realized_pnl}, avg {self.average_price}, fill {fill_event.fill_price}, {fill_event.fill_size}, {multiplier}, {fill_event.commission}')
+                if abs(self.size) >= abs(fill_event.fill_size):  # stay long
+                    self.realized_pnl += (
+                        self.average_price - fill_event.fill_price
+                    ) * fill_event.fill_size * multiplier - fill_event.commission
+                else:  # flip to short
+                    self.realized_pnl += (
+                        fill_event.fill_price - self.average_price
+                    ) * self.size * multiplier - fill_event.commission
                     self.average_price = fill_event.fill_price
-        elif self.size < 0:        # existing short
-            if fill_event.fill_size < 0:         # short more
-                self.average_price = (self.average_price * self.size + fill_event.fill_price * fill_event.fill_size
-                                      + fill_event.commission / multiplier) \
-                                     / (self.size + fill_event.fill_size)
-            else:          # flat short
-                #_logger.info(f'{parent_name} flat short realized_pnl {self.realized_pnl}, avg {self.average_price}, fill {fill_event.fill_price}, {fill_event.fill_size}, {multiplier}, {fill_event.commission}')
+        elif self.size < 0:  # existing short
+            if fill_event.fill_size < 0:  # short more
+                self.average_price = (
+                    self.average_price * self.size
+                    + fill_event.fill_price * fill_event.fill_size
+                    + fill_event.commission / multiplier
+                ) / (self.size + fill_event.fill_size)
+            else:  # flat short
+                # _logger.info(f'{parent_name} flat short realized_pnl {self.realized_pnl}, avg {self.average_price}, fill {fill_event.fill_price}, {fill_event.fill_size}, {multiplier}, {fill_event.commission}')
                 if abs(self.size) >= abs(fill_event.fill_size):  # stay short
-                    self.realized_pnl += (self.average_price - fill_event.fill_price) * fill_event.fill_size \
-                                         * multiplier - fill_event.commission
-                else:   # flip to long
-                    self.realized_pnl += (fill_event.fill_price - self.average_price) * self.size \
-                                         * multiplier - fill_event.commission
+                    self.realized_pnl += (
+                        self.average_price - fill_event.fill_price
+                    ) * fill_event.fill_size * multiplier - fill_event.commission
+                else:  # flip to long
+                    self.realized_pnl += (
+                        fill_event.fill_price - self.average_price
+                    ) * self.size * multiplier - fill_event.commission
                     self.average_price = fill_event.fill_price
-        else:      # no position
-            self.average_price = fill_event.fill_price + fill_event.commission / multiplier /fill_event.fill_size
+        else:  # no position
+            self.average_price = (
+                fill_event.fill_price
+                + fill_event.commission / multiplier / fill_event.fill_size
+            )
 
         self.size += fill_event.fill_size
 
-        _logger.info(f"{parent_name} Position Fill: sym {self.full_symbol}, avg price {self.average_price}, fill price {fill_event.fill_price}, fill size {fill_event.fill_size}, after size {self.size}, close pnl {self.realized_pnl}")
+        _logger.info(
+            f"{parent_name} Position Fill: sym {self.full_symbol}, avg price {self.average_price}, fill price {fill_event.fill_price}, fill size {fill_event.fill_size}, after size {self.size}, close pnl {self.realized_pnl}"
+        )

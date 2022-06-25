@@ -14,11 +14,14 @@ class LiveDataFeed(DataFeedBase):
     """
     Live DataFeed class
     """
+
     def __init__(
-        self, events_queue,
+        self,
+        events_queue,
         init_tickers=None,
-        start_date=None, end_date=None,
-        calc_adj_returns=False
+        start_date=None,
+        end_date=None,
+        calc_adj_returns=False,
     ):
         """
         Takes the CSV directory, the events queue and a possible
@@ -52,9 +55,11 @@ class LiveDataFeed(DataFeedBase):
         if self.start_date is not None:
             sd = self.start_date
         else:
-            sd = ed- timedelta(days = 365)
+            sd = ed - timedelta(days=365)
 
-        data = quandl.get('wiki/'+ticker, start_date=sd, end_date=ed, authtoken='your_token')
+        data = quandl.get(
+            "wiki/" + ticker, start_date=sd, end_date=ed, authtoken="your_token"
+        )
         self.tickers_data[ticker] = data
         self.tickers_data[ticker]["Ticker"] = ticker
 
@@ -100,13 +105,17 @@ class LiveDataFeed(DataFeedBase):
                 ticker_prices = {
                     "close": close,
                     "adj_close": adj_close,
-                    "timestamp": dft.index[0]
+                    "timestamp": dft.index[0],
                 }
                 self.tickers[ticker] = ticker_prices
             except OSError:
-                _logger.error(f'Could not subscribe ticker {ticker} as no data CSV found for pricing.')
+                _logger.error(
+                    f"Could not subscribe ticker {ticker} as no data CSV found for pricing."
+                )
         else:
-            _logger.error(f"Could not subscribe ticker {ticker} as is already subscribed.")
+            _logger.error(
+                f"Could not subscribe ticker {ticker} as is already subscribed."
+            )
 
     def _create_event(self, index, period, ticker, row):
         """
@@ -120,9 +129,15 @@ class LiveDataFeed(DataFeedBase):
         adj_close_price = row["Adj. Close"]
         volume = int(row["Volume"])
         bev = BarEvent(
-            ticker, index, period, open_price,
-            high_price, low_price, close_price,
-            volume, adj_close_price
+            ticker,
+            index,
+            period,
+            open_price,
+            high_price,
+            low_price,
+            close_price,
+            volume,
+            adj_close_price,
         )
         return bev
 
@@ -136,13 +151,9 @@ class LiveDataFeed(DataFeedBase):
         # percentage returns in a list
         # TODO: Make this faster
         if self.calc_adj_returns:
-            prev_adj_close = self.tickers[ticker][
-                "adj_close"
-            ]
+            prev_adj_close = self.tickers[ticker]["adj_close"]
             cur_adj_close = event.adj_close_price
-            self.tickers[ticker][
-                "adj_close_ret"
-            ] = cur_adj_close / prev_adj_close - 1.0
+            self.tickers[ticker]["adj_close_ret"] = cur_adj_close / prev_adj_close - 1.0
             self.adj_close_returns.append(self.tickers[ticker]["adj_close_ret"])
         self.tickers[ticker]["close"] = event.close_price
         self.tickers[ticker]["adj_close"] = event.adj_close_price

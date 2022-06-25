@@ -12,6 +12,7 @@ class LiveEventEngine(object):
     """
     Event queue + a thread to dispatch events
     """
+
     def __init__(self):
         """
         Initialize dispatcher thread and handler function list
@@ -28,7 +29,7 @@ class LiveEventEngine(object):
         # event handlers list, specific event --> handler dict
         self._handlers = defaultdict(list)
 
-    #------------------------------- private functions ---------------------------#
+    # ------------------------------- private functions ---------------------------#
     def _run(self):
         """
         run dispatcher
@@ -44,9 +45,9 @@ class LiveEventEngine(object):
             except Exception as e:
                 _logger.error(f"Event {event.event_type}, Error {str(e)}")
 
-    #----------------------------- end of private functions ---------------------------#
+    # ----------------------------- end of private functions ---------------------------#
 
-    #------------------------------------ public functions -----------------------------#
+    # ------------------------------------ public functions -----------------------------#
     def start(self, timer=True):
         """
         start the dispatcher thread

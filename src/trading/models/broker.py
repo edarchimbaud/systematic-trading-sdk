@@ -8,7 +8,8 @@ from .forex import Forex
 from .margin import Margin
 from .market_data import MarketData
 from .market_impact import MarketImpact
-from ..data.constants import FUTURES, FUTURE_TYPE
+from ..data.client import Client
+from ..data.constants import FUTURE_TYPE, get_futures
 
 
 COMMISSION_INTERACTIVE_BROKERS_USD = (
@@ -68,8 +69,8 @@ class Broker:
     def _apply_market_impact(self, ric, contract_number, execution_price):
         relative_market_impact = self.market_impact.get(ric=ric)
         ticker = Contract(ric=ric).ticker
-        full_point_value = FUTURES[ticker]["FullPointValue"]
-        currency = FUTURES[ticker]["Currency"]
+        full_point_value = get_futures()[ticker]["FullPointValue"]
+        currency = get_futures()[ticker]["Currency"]
         full_point_value_usd = full_point_value * self.forex.to_usd(currency, self.day)
         market_impact = (
             -np.abs(contract_number)
@@ -99,7 +100,7 @@ class Broker:
             contract_number = np.round(contract_number)
         if contract_number == 0:
             return
-        currency = FUTURES[contract.ticker]["Currency"]
+        currency = get_futures()[contract.ticker]["Currency"]
         if currency not in self.positions["Cash"]:
             self.positions["Cash"][currency] = 0
         if np.isnan(self.positions["Cash"][currency]):
@@ -115,7 +116,7 @@ class Broker:
         self.positions["Cash"][currency] -= (
             contract_number
             * execution_price
-            * FUTURES[contract.ticker]["FullPointValue"]
+            * get_futures()[contract.ticker]["FullPointValue"]
         )
         commission = self._apply_commission(contract_number)
         market_impact = self._apply_market_impact(
@@ -132,7 +133,7 @@ class Broker:
                     "ContractNumber": contract_number,
                     "Currency": currency,
                     "ExecutionPrice": execution_price,
-                    "FullPointValue": FUTURES[contract.ticker]["FullPointValue"],
+                    "FullPointValue": get_futures()[contract.ticker]["FullPointValue"],
                     "Commission": commission,
                     "MarketImpact": market_impact,
                 },
@@ -211,7 +212,7 @@ class Broker:
         Returns
         -------
         """
-        currency = FUTURES[contract.ticker]["Currency"]
+        currency = get_futures()[contract.ticker]["Currency"]
         if currency not in self.positions["Cash"]:
             self.positions["Cash"][currency] = 0
         if np.isnan(self.positions["Cash"][currency]):
@@ -228,7 +229,7 @@ class Broker:
         self.positions["Cash"][currency] += (
             contract_number
             * execution_price
-            * FUTURES[contract.ticker]["FullPointValue"]
+            * get_futures()[contract.ticker]["FullPointValue"]
         )
         commission = self._apply_commission(contract_number)
         market_impact = self._apply_market_impact(
@@ -244,7 +245,7 @@ class Broker:
                     "ContractNumber": contract_number,
                     "Currency": currency,
                     "ExecutionPrice": execution_price,
-                    "FullPointValue": FUTURES[contract.ticker]["FullPointValue"],
+                    "FullPointValue": get_futures()[contract.ticker]["FullPointValue"],
                     "Commission": commission,
                     "MarketImpact": market_impact,
                 },
@@ -287,8 +288,8 @@ class Broker:
             else:
                 close = self.previous_close.get(ric, np.NaN)
             ticker = Contract(ric=ric).ticker
-            full_point_value = FUTURES[ticker]["FullPointValue"]
-            currency = FUTURES[ticker]["Currency"]
+            full_point_value = get_futures()[ticker]["FullPointValue"]
+            currency = get_futures()[ticker]["Currency"]
             full_point_value_usd = full_point_value * self.forex.to_usd(
                 currency, self.day
             )

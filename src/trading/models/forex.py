@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 from ..data.client import Client
-from ..data.constants import FUTURES
+from ..data.constants import get_futures
 
 
 class Forex:
@@ -17,7 +17,7 @@ class Forex:
     """
 
     def __init__(self):
-        self._client = Client()
+        pass
 
     def bar_to_usd(self, bardata, ticker):
         """
@@ -36,7 +36,7 @@ class Forex:
             DataFrame
                 The USD bardata.
         """
-        currency = FUTURES[ticker]["Currency"]
+        currency = get_futures()[ticker]["Currency"]
         if currency != "USD":
             day = bardata.index[0]
             rate = self.to_usd(currency, day)
@@ -66,7 +66,7 @@ class Forex:
             DataFrame
                 Forex daily OHLCV.
         """
-        return self._client.get_daily_ohlcv(ric, start_date, end_date)
+        return Client().get_daily_ohlcv(ric, start_date, end_date)
 
     def to_usd(self, currency: str, day: date):
         """

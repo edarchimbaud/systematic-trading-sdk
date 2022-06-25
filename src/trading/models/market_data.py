@@ -9,7 +9,7 @@ from pandas_market_calendars import get_calendar
 
 from .contract import Contract
 from ..data.client import Client
-from ..data.constants import FUTURES
+from ..data.constants import get_futures
 from ..utils.dates import is_weekend
 
 
@@ -198,7 +198,7 @@ class MarketData:
         front_contract, front_ltd = Contract(day=day, ticker=ticker).front_contract
         if day + timedelta(days=MAXIMUM_NUMBER_OF_DAYS_BEFORE_EXPIRY) < front_ltd:
             return False
-        future = FUTURES.get(ticker, {})
+        future = get_futures().get(ticker, {})
         roll_offset_from_reference = timedelta(
             days=future.get("RollOffsetFromReference", -31)
         )

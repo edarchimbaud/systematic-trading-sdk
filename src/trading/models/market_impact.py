@@ -2,7 +2,7 @@
 Market impact access module.
 """
 from .contract import Contract
-from ..data.constants import FUTURES
+from ..data.constants import get_futures
 
 DEFAULT_SPREAD = 5e-4
 
@@ -39,4 +39,4 @@ class MarketImpact:
         """
         if ticker is None:
             ticker = Contract(ric=ric).ticker
-        return FUTURES.get(ticker, {}).get("Spread", DEFAULT_SPREAD)
+        return get_futures().get(ticker, {}).get("Spread", DEFAULT_SPREAD)

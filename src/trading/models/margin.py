@@ -7,7 +7,7 @@ import numpy as np
 from .contract import Contract
 from .forex import Forex
 from .market_data import MarketData
-from ..data.constants import FUTURES
+from ..data.constants import get_futures
 
 
 class Margin:
@@ -59,9 +59,9 @@ class Margin:
                 Initial overnight margin limit.
         """
 
-        currency = FUTURES[ticker]["Currency"]
+        currency = get_futures()[ticker]["Currency"]
         return (
-            FUTURES[ticker]["OvernightInitial"]
+            get_futures()[ticker]["OvernightInitial"]
             * self.__adjustment_factor(ticker=ticker, day=day)
             * self.forex.to_usd(currency, day)
         )
@@ -83,9 +83,9 @@ class Margin:
             float
                 Maintenance overnight margin limit.
         """
-        currency = FUTURES[ticker]["Currency"]
+        currency = get_futures()[ticker]["Currency"]
         return (
-            FUTURES[ticker]["OvernightMaintenance"]
+            get_futures()[ticker]["OvernightMaintenance"]
             * self.__adjustment_factor(ticker=ticker, day=day)
             * self.forex.to_usd(currency, day)
         )

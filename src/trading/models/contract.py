@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta
 from methodtools import lru_cache
 
 from ..data.client import Client
-from ..data.constants import FUTURES
+from ..data.constants import get_futures
 
 
 class Contract:
@@ -123,7 +123,7 @@ class Contract:
         if self.ticker is None or self.day is None:
             return None, None
 
-        future = FUTURES.get(self.ticker, {})
+        future = get_futures().get(self.ticker, {})
         roll_offset_from_reference = timedelta(
             days=future.get("RollOffsetFromReference", -31)
         )
@@ -153,7 +153,7 @@ class Contract:
             str
                 RIC.
         """
-        future = FUTURES.get(self.ticker, {})
+        future = get_futures().get(self.ticker, {})
         roll_offset_from_reference = timedelta(
             days=future.get("RollOffsetFromReference", -31)
         )
@@ -190,8 +190,10 @@ class Contract:
             stem_wo_month = stem_wo_year[:-1]
             if stem_wo_month in ["SIRT"]:
                 return "SI"
-            for ticker in FUTURES.keys():
-                if stem_wo_month == FUTURES[ticker].get("Stem", {}).get("Reuters"):
+            for ticker in get_futures().keys():
+                if stem_wo_month == get_futures()[ticker].get("Stem", {}).get(
+                    "Reuters"
+                ):
                     self._ticker = ticker
         return self._ticker
 
@@ -292,7 +294,9 @@ class Contract:
         if datetime.strptime(
             dfm.LTD.iloc[-1], "%Y-%m-%d"
         ).date() - self.day < timedelta(days=minimum_time_to_expiry):
-            expiry_calendar = FUTURES.get(self.ticker, {}).get("ExpiryCalendar", "")
+            expiry_calendar = (
+                get_futures().get(self.ticker, {}).get("ExpiryCalendar", "")
+            )
             raise Exception(
                 f"Not enough data for {self.ticker}. Download expiry data from {expiry_calendar}"
             )
@@ -332,7 +336,7 @@ def stem_to_ticker(stem: str):
             Ticker.
     """
     tickers = [
-        k for k, v in FUTURES.items() if v.get("Stem", {}).get("Reuters") == stem
+        k for k, v in get_futures().items() if v.get("Stem", {}).get("Reuters") == stem
     ]
     if len(tickers) != 1:
         raise Exception(

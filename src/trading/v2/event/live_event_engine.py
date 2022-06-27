@@ -1,9 +1,12 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Live event engine module.
+"""
 from queue import Queue, Empty
 from threading import Thread
 from collections import defaultdict
 import logging
+
+from .event import Event
 
 _logger = logging.getLogger(__name__)
 
@@ -29,64 +32,77 @@ class LiveEventEngine(object):
         # event handlers list, specific event --> handler dict
         self._handlers = defaultdict(list)
 
-    # ------------------------------- private functions ---------------------------#
     def _run(self):
         """
         run dispatcher
         """
-        while self.__active == True:
+        while self._active == True:
             try:
                 event = self._queue.get(block=True, timeout=1)
                 # call event handlers
                 if event.event_type in self._handlers:
-                    [handler(event) for handler in self._handlers[event.event_type]]
+                    for handler in self._handlers[event.event_type]:
+                        handler(event)
             except Empty:
                 pass
-            except Exception as e:
-                _logger.error(f"Event {event.event_type}, Error {str(e)}")
+            except Exception as exception:  # pylint: disable=broad-except
+                _logger.error("Event %s, Error %s", event.event_type, str(exception))
 
-    # ----------------------------- end of private functions ---------------------------#
-
-    # ------------------------------------ public functions -----------------------------#
-    def start(self, timer=True):
+    def start(self):
         """
-        start the dispatcher thread
+        Start the dispatcher thread.
         """
-        self.__active = True
+        self._active = True
         self._thread.start()
 
     def stop(self):
         """
-        stop the dispatcher thread
+        Stop the dispatcher thread.
+
+        Parameters
+        ----------
+            timer : bool
+                If True, the dispatcher thread will be stopped.
         """
-        self.__active = False
+        self._active = False
         self._thread.join()
 
-    def put(self, event):
+    def put(self, event: Event) -> None:
         """
-        put event in the queue; call from outside
+        Put event in the queue; call from outside.
+
+        Parameters
+        ----------
+            event : Event
+                Event to put in the queue.
         """
         self._queue.put(event)
 
-    def register_handler(self, type_, handler):
+    def register_handler(self, type_: str, handler) -> None:
         """
-        register handler/subscriber
-        """
-        handlerList = self._handlers[type_]
+        Register handler/subscriber.
 
-        if handler not in handlerList:
-            handlerList.append(handler)
+        Parameters
+        ----------
+            type_ : str
+                Event type.
+
+            handler : function
+                Handler function.
+        """
+        handler_list = self._handlers[type_]
+
+        if handler not in handler_list:
+            handler_list.append(handler)
 
     def unregister_handler(self, type_, handler):
         """
         unregister handler/subscriber
         """
-        handlerList = self._handlers[type_]
+        handler_list = self._handlers[type_]
 
-        if handler in handlerList:
-            handlerList.remove(handler)
+        if handler in handler_list:
+            handler_list.remove(handler)
 
-        if not handlerList:
+        if not handler_list:
             del self._handlers[type_]
-
-    # -------------------------------- end of public functions -----------------------------#

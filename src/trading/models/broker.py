@@ -8,7 +8,6 @@ from .forex import Forex
 from .margin import Margin
 from .market_data import MarketData
 from .market_impact import MarketImpact
-from ..data.client import Client
 from ..data.constants import FUTURE_TYPE, get_futures
 
 
@@ -104,7 +103,7 @@ class Broker:
         if currency not in self.positions["Cash"]:
             self.positions["Cash"][currency] = 0
         if np.isnan(self.positions["Cash"][currency]):
-            raise ValueError("Cash is nan.", ric, self.day)
+            raise ValueError("Cash is nan.", contract.ric, self.day)
 
         row = self.market_data.bardata(contract=contract, day=self.day)
         if np.isnan(row.Close[0]):

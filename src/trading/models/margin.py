@@ -29,13 +29,14 @@ class Margin:
         if not self.market_data.is_trading_day(contract=contract, day=day):
             return np.NaN
         row = self.market_data.bardata(contract=contract, day=day)
-        ref_date = self._get_ref_date(ticker=ticker)
+        ref_date = self.__get_ref_date(ticker=ticker)
         ref_contract, _ = Contract(ticker=ticker, day=ref_date).front_contract
         row_ref = self.market_data.bardata(contract=ref_contract, day=ref_date)
         self.cache[key] = row["Close"][0] / row_ref["Close"][0]
         return self.cache[key]
 
-    def _get_ref_date(self, ticker: str):
+    @staticmethod
+    def __get_ref_date(ticker: str):
         if ticker in ["HTE", "MBT"]:
             return date(2021, 8, 18)
         default_ref_date = date(2020, 1, 6)

@@ -2,6 +2,7 @@
 Backtester
 """
 
+from dataclasses import dataclass
 from datetime import timedelta
 import os
 from pprint import pprint
@@ -18,9 +19,6 @@ from ..utils.dates import is_weekend
 
 
 TWELVE_MONTHS = 250
-
-
-from dataclasses import dataclass
 
 
 # pylint: disable=too-many-instance-attributes
@@ -200,6 +198,7 @@ class Backtester:
         )
 
     def next(self):
+        # pylint: disable=no-self-use
         """
         This function contains the logic of the strategy: decision, update of positions, etc.
         It is called on every new day.
@@ -213,6 +212,7 @@ class Backtester:
         raise Exception("To be implemented in the child class")
 
     def next_indicators(self):
+        # pylint: disable=no-self-use
         """
         This function contains the logic of the calculation of the indicators.
         It is called on every new day, after next().

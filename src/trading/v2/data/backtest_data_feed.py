@@ -1,8 +1,8 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-import os
+"""
+Backtest data feed.
+"""
 import pandas as pd
-from datetime import datetime, date, time, timedelta
+
 from .data_feed_base import DataFeedBase
 from .tick_event import TickEvent
 
@@ -13,13 +13,21 @@ class BacktestDataFeed(DataFeedBase):
     This is an easy way to handle multiple sources
     """
 
-    def __init__(self, start_date=None, end_date=None):
+    def __init__(self, start_date=None, end_date=None) -> None:
         self._end_date = end_date
         self._start_date = start_date
         self._data_stream = None
         self._data_stream_iter = None
 
-    def set_data_source(self, data):
+    def set_data_source(self, data: pd.DataFrame):
+        """
+        Set the data source.
+
+        Parameters
+        ----------
+            data: pd.DataFrame
+                The data source.
+        """
         if self._data_stream is None:
             self._data_stream = data.index
         else:
@@ -28,6 +36,14 @@ class BacktestDataFeed(DataFeedBase):
             )
 
     def subscribe_market_data(self, symbols=None):
+        """
+        Subscribe to market data.
+
+        Parameters
+        ----------
+            symbols: list of str
+                List of symbols to subscribe to.
+        """
         if self._start_date:
             if self._end_date:
                 self._data_stream = self._data_stream[
@@ -42,6 +58,14 @@ class BacktestDataFeed(DataFeedBase):
         self._data_stream_iter = self._data_stream.__iter__()
 
     def unsubscribe_market_data(self, symbols=None):
+        """
+        Unsubscribe from market data.
+
+        Parameters
+        ----------
+            symbols: list of str
+                List of symbols to unsubscribe from.
+        """
         pass
 
     def stream_next(self):

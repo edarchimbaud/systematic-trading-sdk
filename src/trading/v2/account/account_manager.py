@@ -1,16 +1,24 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Account manager module.
+"""
 
 from .account_event import AccountEvent
 
 
 class AccountManager(object):
-    def __init__(self, account_id):
+    """
+    Account manager class.
+    """
+
+    def __init__(self, account_id: str) -> None:
         self._account_id = account_id
         self._account_dict = {}  # account id ==> account
         self.reset()
 
-    def reset(self):
+    def reset(self) -> None:
+        """
+        Reset the account manager.
+        """
         self._account_dict.clear()
         # initialize accounts from server_config.yaml
         account = AccountEvent()
@@ -18,7 +26,15 @@ class AccountManager(object):
         account.brokerage = "ib"
         self._account_dict[self._account_id] = account
 
-    def on_account(self, account_event):
+    def on_account(self, account_event: AccountEvent) -> None:
+        """
+        Update the account manager with the account event.
+
+        Parameters
+        ----------
+            account_event: AccountEvent
+                Account event.
+        """
         if account_event.account_id in self._account_dict:
             self._account_dict[
                 account_event.account_id

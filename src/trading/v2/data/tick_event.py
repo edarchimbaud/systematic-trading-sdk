@@ -1,9 +1,12 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-from pandas import Timestamp
-from enum import Enum
+"""
+Tick event module.
+"""
 from datetime import datetime
-from ..event.event import *
+from enum import Enum
+
+from pandas import Timestamp
+
+from ..event.event import Event, EventType
 
 
 class TickType(Enum):
@@ -33,10 +36,10 @@ class TickEvent(Event):
         self.price = 0.0
         self.size = 0
         self.depth = 1
-        self.bid_price_L1 = 0.0
-        self.bid_size_L1 = 0
-        self.ask_price_L1 = 0.0
-        self.ask_size_L1 = 0
+        self.bid_price_L1 = 0.0  # pylint: disable=invalid-name
+        self.bid_size_L1 = 0  # pylint: disable=invalid-name
+        self.ask_price_L1 = 0.0  # pylint: disable=invalid-name
+        self.ask_size_L1 = 0  # pylint: disable=invalid-name
         self.open_interest = 0
         self.open = 0.0
         self.high = 0.0
@@ -46,15 +49,9 @@ class TickEvent(Event):
         self.lower_limit_price = 0.0
 
     def __str__(self):
-        return "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s" % (
-            str(self.timestamp.strftime("%H:%M:%S.%f")),
-            str(datetime.now().strftime("%H:%M:%S.%f")),
-            str(self.full_symbol),
-            (self.tick_type),
-            str(self.bid_size_L1),
-            str(self.bid_price_L1),
-            str(self.ask_price_L1),
-            str(self.ask_size_L1),
-            str(self.price),
-            str(self.size),
+        return (
+            f'{self.timestamp.strftime("%H:%M:%S.%f")},'
+            f'{datetime.now().strftime("%H:%M:%S.%f")},{self.full_symbol},'
+            f"{self.tick_type},{self.bid_size_L1},{self.bid_price_L1},"
+            f"{self.ask_price_L1},{self.ask_size_L1},{self.price},{self.size}"
         )

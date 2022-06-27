@@ -14,6 +14,8 @@ class Contract:
     Contract management.
     """
 
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(
         self,
         ric: str = None,
@@ -91,7 +93,8 @@ class Contract:
             is_recent_ric = year >= (date.today() - timedelta(days=365)).year
         return is_recent_ric
 
-    def __get_contract(self, ticker: str, day: date, contract_rank: int = 0):
+    @staticmethod
+    def __get_contract(ticker: str, day: date, contract_rank: int = 0):
         chain = Contract(ticker=ticker, day=day).chain
         if chain is None:
             return None, None
@@ -214,6 +217,8 @@ class Contract:
         """
         if self._first_trade_date is None:
             chain = Contract(ticker=self.ticker, day=date(1990, 1, 1)).chain
+            if chain is None:
+                return None
             if "^" in self.ric:
                 contracts = chain.loc[chain.RIC == self.ric, "FTD"]
                 if contracts.shape[0] == 0:
@@ -251,6 +256,8 @@ class Contract:
         """
         if self._last_trade_date is None:
             chain = Contract(ticker=self.ticker, day=date(1990, 1, 1)).chain
+            if chain is None:
+                return None
             if "^" in self.ric:
                 contracts = chain.loc[chain.RIC == self.ric, "LTD"]
                 if contracts.shape[0] == 0:

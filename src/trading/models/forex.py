@@ -46,7 +46,8 @@ class Forex:
         return bardata
 
     @lru_cache()
-    def __get_forex_ohlcv(self, ric: str, start_date: date, end_date: date):
+    @staticmethod
+    def __get_forex_ohlcv(ric: str, start_date: date, end_date: date):
         """
         Get forex OHLCV.
 

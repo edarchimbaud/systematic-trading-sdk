@@ -1,10 +1,15 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-from pandas import Timestamp
+"""
+Event module.
+"""
 from enum import Enum
 
 
 class EventType(Enum):
+    """
+    Event type.
+    """
+
+    UNDEFINED = -1
     TICK = 0
     BAR = 1
     ORDER = 2
@@ -24,9 +29,14 @@ class Event(object):
     Base Event class for event-driven system
     """
 
+    event_type = EventType.UNDEFINED
+
     @property
     def typename(self):
-        return self.type.name
+        """
+        Type of event.
+        """
+        return self.event_type.name
 
 
 class LogEvent(Event):

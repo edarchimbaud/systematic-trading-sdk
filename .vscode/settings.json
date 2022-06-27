@@ -7,4 +7,5 @@
     "python.linting.pylintEnabled": true,
     "python.formatting.provider": "black",
     "python.defaultInterpreterPath": "${env:HOME}/bin/miniconda3/bin/python",
+    "python.linting.enabled": true,
 }

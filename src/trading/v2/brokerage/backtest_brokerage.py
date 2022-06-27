@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from trading.v2.data.tick_event import TickEvent
 from .brokerage_base import BrokerageBase
-from ..event.event import EventType
+from ..data.data_board import DataBoard
+from ..event.backtest_event_engine import BacktestEventEngine
+from ..event.live_event_engine import LiveEventEngine
 from ..order.fill_event import FillEvent
 from ..order.order_event import OrderEvent
 from ..order.order_type import OrderType
@@ -14,12 +17,21 @@ class BacktestBrokerage(BrokerageBase):
     Limit or stop order is saved to _active_orders for next tick
     """
 
-    def __init__(self, events_engine, data_board):
+    def __init__(
+        self,
+        events_engine: BacktestEventEngine | LiveEventEngine,
+        data_board: DataBoard,
+    ) -> None:
         """
         Initialize Backtest Brokerage.
 
-        :param events_engine: send fill_event to event engine
-        :param data_board: retrieve latest price from data_board
+        Parameters
+        ----------
+            events_engine: BacktestEventEngine or LiveEventEngine
+                Send fill_event to event engine.
+
+            data_board: DataBoard
+                Retrieve latest price from data_board.
         """
         self._events_engine = events_engine
         self._data_board = data_board  # retrieve price against order
@@ -29,14 +41,22 @@ class BacktestBrokerage(BrokerageBase):
         )  # market data subscription, to be consistent with live
         self._active_orders = {}
 
-    # ------------------------------------ private functions -----------------------------#
-    def _calculate_commission(self, full_symbol, fill_price, fill_size):
+    def __calculate_commission(
+        self, full_symbol: str, fill_price: float, fill_size: int
+    ) -> None:
         """
         Calculate commision. By default it uses IB commission charges.
 
-        :param full_symbol: contract symbol
-        :param fill_price: order fill price
-        :param fill_size: order fill size
+        Parameters
+        ----------
+            full_symbol: str
+                Contract symbol.
+
+            fill_price: float
+                Order fill price.
+
+            fill_size: int
+                Order fill size.
         """
         if "STK" in full_symbol:
             commission = max(0.005 * abs(fill_size), 1)  # per share
@@ -53,12 +73,17 @@ class BacktestBrokerage(BrokerageBase):
 
         return commission
 
-    def _try_cross_order(self, order_event: OrderEvent, current_price):
+    def __try_cross_order(self, order_event: OrderEvent, current_price: float) -> None:
         """
         Cross standing order against current price.
 
-        :param order_event: order to be crossed
-        :param current_price: current market price
+        Parameters
+        ----------
+            order_event: OrderEvent
+                Order to be crossed.
+
+            current_price: float
+                Current market price.
         """
         if order_event.order_type == OrderType.MARKET:
             order_event.order_status = OrderStatus.FILLED
@@ -81,24 +106,27 @@ class BacktestBrokerage(BrokerageBase):
         ):
             order_event.order_status = OrderStatus.FILLED
 
-    # -------------------------------- end of private functions -----------------------------#
-
-    # -------------------------------------- public functions -------------------------------#
-    def reset(self):
+    def reset(self) -> None:
         """
         Reset Backtest Brokerage.
         """
         self._active_orders.clear()
         self.orderid = 1
 
-    def on_tick(self, tick_event):
+    def on_tick(self, tick_event: TickEvent) -> None:
         """
         Cross standing orders against new tick_event
 
         Market order can be potentially saved and then filled here against tomorrow's open price
 
-        :param tick_event: new tick just came in
-        :return: no return; if orders are filled, they are pushed into message queue
+        Parameters
+        ----------
+            tick_event: TickEvent
+                New tick just came in.
+
+        Returns
+        -------
+            No return; if orders are filled, they are pushed into message queue
         """
         # check standing (stop) orders
         # put trigged into queue
@@ -111,7 +139,7 @@ class BacktestBrokerage(BrokerageBase):
             current_price = self._data_board.get_current_price(
                 order_event.full_symbol, timestamp
             )
-            self._try_cross_order(order_event, current_price)
+            self.__try_cross_order(order_event, current_price)
 
             if order_event.order_status == OrderStatus.FILLED:
                 fill = FillEvent()
@@ -123,7 +151,7 @@ class BacktestBrokerage(BrokerageBase):
                 # TODO: use bid/ask to fill short/long
                 fill.fill_price = current_price
                 fill.exchange = "BACKTEST"
-                fill.commission = self._calculate_commission(
+                fill.commission = self.__calculate_commission(
                     fill.full_symbol, fill.fill_price, fill.fill_size
                 )
                 self._events_engine.put(fill)
@@ -151,22 +179,28 @@ class BacktestBrokerage(BrokerageBase):
             if k in _remaining_active_orders_id
         }
 
-    def place_order(self, order_event):
+    def place_order(self, order_event: OrderEvent) -> None:
         """
         Place and fill client order; return fill event.
 
         Market order is immediately filled, no latency or slippage
         the alternative is to save the orders and fill in on_tick function
 
-        :param order_event: client order received
-        :return: no return; fill_event is pushed into message queue
+        Parameters
+        ----------
+            order_event: OrderEvent
+                Client order received.
+
+        Returns
+        -------
+            No return; fill_event is pushed into message queue.
         """
         # current_price = self._data_board.get_last_price(order_event.full_symbol)      # last price is not updated yet
         timestamp = order_event.create_time
         current_price = self._data_board.get_current_price(
             order_event.full_symbol, timestamp
         )
-        self._try_cross_order(order_event, current_price)
+        self.__try_cross_order(order_event, current_price)
 
         if order_event.order_status == OrderStatus.FILLED:
             fill = FillEvent()
@@ -179,7 +213,7 @@ class BacktestBrokerage(BrokerageBase):
             # TODO: use bid/ask to fill short/long
             fill.fill_price = current_price
             fill.exchange = "BACKTEST"
-            fill.commission = self._calculate_commission(
+            fill.commission = self.__calculate_commission(
                 fill.full_symbol, fill.fill_price, fill.fill_size
             )
 
@@ -193,21 +227,27 @@ class BacktestBrokerage(BrokerageBase):
             ] = order_event  # save standing orders
             self._events_engine.put(order_event)
 
-    def cancel_order(self, order_id):
+    def cancel_order(self, order_id: str) -> None:
         """
         Handle cancel order request from client.
 
-        :param order_id: order id of the order to be canceled
-        :return: no return; cancel feedback is pushed into message queue
+        Parameters
+        ----------
+            order_id: str
+                Order id of the order to be canceled.
+
+        Returns
+        -------
+            No return; cancel feedback is pushed into message queue.
         """
         self._active_orders = {k: v for k, v in self._active_orders if k != order_id}
 
-    def next_order_id(self):
+    def next_order_id(self) -> str:
         """
         Return next available order id for client to use.
 
-        :return: next available new order id
+        Returns
+        -------
+            str: Next available new order id.
         """
         return self.orderid
-
-    # ------------------------------- end of public functions -----------------------------#

@@ -87,7 +87,8 @@ class MarketData:
         dfm.set_index("Date", drop=True, inplace=True)
         return dfm, error
 
-    def get_future_ohlcv_for_day(self, contract: Contract, day: date):
+    @staticmethod
+    def get_future_ohlcv_for_day(contract: Contract, day: date):
         """
         Get OHLCV data for a future and for a specific day.
 
@@ -127,7 +128,8 @@ class MarketData:
         message = f"No OHLCV for {contract.ric} on {day.isoformat()}"
         return None, {"message": message}
 
-    def get_start_day(self, first_trading_day: date, window: int):
+    @staticmethod
+    def get_start_day(first_trading_day: date, window: int):
         """
         Get the start day of the strategy.
 

@@ -1,12 +1,11 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Backtest event engine.
+"""
+from collections import defaultdict
+import logging
+
 from queue import Empty, Queue
 
-# from multiprocessing import Queue
-from ..event.event import EventType
-from threading import Thread
-import logging
-from collections import defaultdict
 
 _logger = logging.getLogger(__name__)
 
@@ -32,11 +31,10 @@ class BacktestEventEngine(object):
         # event handlers list, dict: specific event key --> handler value
         self._handlers = defaultdict(list)
 
-    # ------------------------------------ public functions -----------------------------#
-    def run(self, nSteps=-1):
+    def run(self, n_steps=-1):
         """
         run backtest,
-        if nSteps = -1, run to the end; else run nSteps
+        if n_steps = -1, run to the end; else run n_steps
         """
         _logger.info("Running Backtest...")
         nstep = 0
@@ -44,12 +42,12 @@ class BacktestEventEngine(object):
             try:
                 event = self._queue.get(False)
             except Empty:  # throw good exception
-                if (nSteps == -1) or (nstep < nSteps):
+                if (n_steps == -1) or (nstep < n_steps):
                     try:
                         event = self._datafeed.stream_next()
                         self._queue.put(event)
                         nstep += 1
-                    except:
+                    except:  # pylint: disable=bare-except
                         # stop if not able to next event
                         self._active = False
                 else:
@@ -58,10 +56,10 @@ class BacktestEventEngine(object):
                 try:
                     # call event handlers
                     if event.event_type in self._handlers:
-                        [handler(event) for handler in self._handlers[event.event_type]]
-
-                except Exception as e:
-                    logging.error("Error {0}".format(str(e.args[0])).encode("utf-8"))
+                        for handler in self._handlers[event.event_type]:
+                            handler(event)
+                except Exception as exception:  # pylint: disable=broad-except
+                    logging.error("Error %s", exception.args[0])
 
     def put(self, event):
         """
@@ -73,21 +71,16 @@ class BacktestEventEngine(object):
         """
         register handler/subscriber
         """
-        handlerList = self._handlers[type_]
-
-        if handler not in handlerList:
-            handlerList.append(handler)
+        handler_list = self._handlers[type_]
+        if handler not in handler_list:
+            handler_list.append(handler)
 
     def unregister_handler(self, type_, handler):
         """
         unregister handler/subscriber
         """
-        handlerList = self._handlers[type_]
-
-        if handler in handlerList:
-            handlerList.remove(handler)
-
-        if not handlerList:
+        handler_list = self._handlers[type_]
+        if handler in handler_list:
+            handler_list.remove(handler)
+        if not handler_list:
             del self._handlers[type_]
-
-    # -------------------------------- end of public functions -----------------------------#

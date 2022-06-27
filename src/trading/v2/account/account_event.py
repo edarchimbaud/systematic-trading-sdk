@@ -1,12 +1,14 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Account event module.
+"""
 
 from ..event.event import *
 
 
 class AccountEvent(Event):
     """
-    also serve as account
+    Account event class.
+    Also serve as account.
     """
 
     def __init__(self):

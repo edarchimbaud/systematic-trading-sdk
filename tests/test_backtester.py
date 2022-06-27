@@ -3,7 +3,6 @@ Copyright edarchimbaud
 """
 from datetime import date
 import pytest
-from trading.data.constants import FUTURE_TYPE
 from trading.models.backtester import Backtester
 from trading.models.backtester import BacktesterParameters
 

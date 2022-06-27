@@ -1,5 +1,6 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Data module for trading.
+"""
 from .backtest_data_feed import *
 from .data_board import *
 from .live_data_feed import *

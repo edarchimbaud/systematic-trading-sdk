@@ -1,5 +1,45 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+# pylint: disable=too-many-lines
+"""
+Interactive Brokers module.
+"""
+from datetime import datetime
+from copy import copy
+import logging
+from threading import Thread
+
+from ibapi.wrapper import EWrapper
+from ibapi.client import EClient
+from ibapi import utils
+
+from ibapi.common import (
+    BarData,
+    FaDataType,
+    HistogramDataList,
+    ListOfContractDescription,
+    ListOfDepthExchanges,
+    ListOfFamilyCode,
+    ListOfHistoricalTick,
+    ListOfHistoricalTickBidAsk,
+    ListOfHistoricalTickLast,
+    ListOfNewsProviders,
+    ListOfPriceIncrements,
+    OrderId,
+    SetOfFloat,
+    SetOfString,
+    SmartComponentMap,
+    TickAttrib,
+    TickAttribBidAsk,
+    TickAttribLast,
+    TickerId,
+)
+from ibapi.contract import ComboLeg, Contract, ContractDetails
+from ibapi.order import Order
+
+from ibapi.order_state import OrderState
+from ibapi.execution import Execution
+from ibapi.commission_report import CommissionReport
+from ibapi.ticktype import TickTypeEnum
+
 from .brokerage_base import BrokerageBase
 from ..event.event import LogEvent
 from ..account import AccountEvent
@@ -9,43 +49,33 @@ from ..order.fill_event import FillEvent
 from ..order.order_event import OrderEvent
 from ..order.order_status import OrderStatus
 from ..position.position_event import PositionEvent
-from datetime import datetime
-from copy import copy
-from threading import Thread
-import logging
 
-from ibapi.wrapper import EWrapper
-from ibapi.client import EClient
-from ibapi import utils
-
-# types
-from ibapi.common import *  # @UnusedWildImport
-from ibapi.order_condition import *  # @UnusedWildImport
-from ibapi.contract import *  # @UnusedWildImport
-from ibapi.order import *  # @UnusedWildImport
-from ibapi.order_state import *  # @UnusedWildImport
-from ibapi.execution import Execution
-from ibapi.execution import ExecutionFilter
-from ibapi.commission_report import CommissionReport
-from ibapi.ticktype import TickTypeEnum
-from ibapi.tag_value import TagValue
-
-from ibapi.account_summary_tags import *
 
 _logger = logging.getLogger(__name__)
 
 
 class InteractiveBrokers(BrokerageBase):
-    def __init__(self, msg_event_engine, tick_event_engine, account: str):
+    """
+    Interactive Brokers class.
+    """
+
+    def __init__(self, msg_event_engine, tick_event_engine, account) -> None:
         """
         Initialize InteractiveBrokers brokerage.
 
         Currently, the client is strongly coupled to broker without an incoming queue,
         e.g. client calls broker.place_order to place order directly.
 
-        :param msg_event_engine:  used to broadcast messages the broker generates back to client
-        :param tick_event_engine:  used to broadcast market data back to client
-        :param account: the IB account
+        Parameters
+        ----------
+            msg_event_engine:
+                Used to broadcast messages the broker generates back to client.
+
+            tick_event_engine:
+                Used to broadcast market data back to client.
+
+            account:
+                The IB account.
         """
         self.event_engine = msg_event_engine  # save events to event queue
         self.tick_event_engine = tick_event_engine
@@ -72,27 +102,36 @@ class InteractiveBrokers(BrokerageBase):
         self.reqid = 0  # next/available reqid
         self.orderid = 0  # next/available orderid
 
-    def connect(self, host="127.0.0.1", port=7497, clientId=0):
+    def connect(
+        self, host: str = "127.0.0.1", port: int = 7497, client_id: int = 0
+    ) -> None:
         """
         Connect to IB. Request open orders under clientid upon successful connection.
 
-        :param host: host address
-        :param port: socket port
-        :param clientId: client id
+        Parameters
+        ----------
+            host: str
+                Host address.
+
+            port: int
+                Socket port.
+
+            client_id: int
+                Client id.
         """
-        self.clientid = clientId
+        self.clientid = client_id
         if self.api.connected:
             return
 
-        self.api.connect(host, port, clientId=clientId)
+        self.api.connect(host, port, clientId=client_id)
         self.api.thread.start()
-        self.reqCurrentTime()
+        self.req_current_time()
 
-        if clientId == 0:
+        if client_id == 0:
             # associate TWS with the client
             self.api.reqAutoOpenOrders(True)
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """
         Disconnect from IB
         """
@@ -103,25 +142,34 @@ class InteractiveBrokers(BrokerageBase):
         # self.api.conn.disconnect()
         self.api.conn.socket = None
         self.api.disconnect()
-        _logger.info(f"connected {self.api.isConnected()}")
+        _logger.info("connected %s", self.api.isConnected())
 
-    def _calculate_commission(self, full_symbol, fill_price, fill_size):
+    # pylint: disable=unused-private-member
+    def __calculate_commission(self, full_symbol, fill_price, fill_size):
         pass
 
-    def next_order_id(self):
+    def next_order_id(self) -> int:
         """
         Return next available order id
 
-        :return: next order id available for next orders
+        Returns
+        -------
+            int: Next order id available for next orders.
         """
         return self.orderid
 
-    def place_order(self, order_event):
+    def place_order(self, order_event: OrderEvent) -> None:
         """
         Place order to IB
 
-        :param order_event: client order to be placed
-        :return: no return. An order event is pushed to message queue with order status Acknowledged
+        Parameters
+        ----------
+            order_event: OrderEvent
+                Client order to be placed.
+
+        Returns
+        -------
+            No return. An order event is pushed to message queue with order status Acknowledged.
         """
         if not self.api.connected:
             return
@@ -129,17 +177,21 @@ class InteractiveBrokers(BrokerageBase):
         ib_contract = InteractiveBrokers.symbol_to_contract(order_event.full_symbol)
         if not ib_contract:
             _logger.error(
-                f"Failed to find contract to place order {order_event.full_symbol}"
+                "Failed to find contract to place order %s", order_event.full_symbol
             )
             return
 
         ib_order = InteractiveBrokers.order_to_ib_order(order_event)
         if not ib_order:
-            _logger.error(f"Failed to create order to place {order_event.full_symbol}")
+            _logger.error("Failed to create order to place %s", order_event.full_symbol)
             return
 
-        ib_order.eTradeOnly = False  # The EtradeOnly IBApi.Order attribute is no longer supported. Error received with TWS versions 983+
-        ib_order.firmQuoteOnly = False  # The firmQuoteOnly IBApi.Order attribute is no longer supported. Error received with TWS versions 983+
+        # The EtradeOnly IBApi.Order attribute is no longer supported.
+        # Error received with TWS versions 983+
+        ib_order.eTradeOnly = False
+        # The firmQuoteOnly IBApi.Order attribute is no longer supported.
+        # Error received with TWS versions 983+
+        ib_order.firmQuoteOnly = False
         if order_event.order_id < 0:
             order_event.order_id = self.orderid
             self.orderid += 1
@@ -148,41 +200,50 @@ class InteractiveBrokers(BrokerageBase):
         order_event.order_status = OrderStatus.ACKNOWLEDGED  # acknowledged
         self.order_dict[order_event.order_id] = order_event
         _logger.info(
-            f"Order acknowledged {order_event.order_id}, {order_event.full_symbol}"
+            "Order acknowledged %s, %s", order_event.order_id, order_event.full_symbol
         )
         self.event_engine.put(copy(order_event))
         self.api.placeOrder(order_event.order_id, ib_contract, ib_order)
 
-    def cancel_order(self, order_id):
+    def cancel_order(self, order_id: int) -> None:
         """
         Cancel client order.
 
-        :param order_id: order id of the order to be canceled
-        :return: no return. If order is successfully canceled, IB will return an orderstatus message.
+        Parameters
+        ----------
+            order_id: int
+                order id of the order to be canceled.
+
+        Returns
+        -------
+            No return. If order is successfully canceled, IB will return an orderstatus message.
         """
         if not self.api.connected:
             return
 
-        if not order_id in self.order_dict.keys():
-            _logger.error(f"Order to cancel not found. order id {order_id}")
+        if not order_id in self.order_dict:
+            _logger.error("Order to cancel not found. order id %s", order_id)
             return
 
         self.order_dict[order_id].cancel_time = datetime.now().strftime("%H:%M:%S.%f")
 
         self.api.cancelOrder(order_id)
 
-    def cancel_all_orders(self):
+    def cancel_all_orders(self) -> None:
         """
-        Cancel all standing orders, for example, before one wants to shut down completely for some reasons.
-
+        Cancel all standing orders, for example, before one wants
+        to shut down completely for some reasons.
         """
         self.api.reqGlobalCancel()
 
-    def subscribe_market_data(self, sym):
+    def subscribe_market_data(self, sym: str) -> None:
         """
         Subscribe market L1 data. Market data for this symbol will then be streamed to client.
 
-        :param sym: the symbol to be subscribed.
+        Parameters
+        ----------
+            sym: str
+                The symbol to be subscribed.
         """
         if not self.api.connected:
             return
@@ -193,11 +254,11 @@ class InteractiveBrokers(BrokerageBase):
 
         contract = InteractiveBrokers.symbol_to_contract(sym)
         if not contract:
-            _logger.error(f"Failed to find contract to subscribe market data: {sym}")
+            _logger.error("Failed to find contract to subscribe market data: %s", sym)
             return
 
         self.api.reqContractDetails(self.reqid, contract)
-        _logger.info(f"Requesting market data {self.reqid} {sym}")
+        _logger.info("Requesting market data %s %s", self.reqid, sym)
         self.contract_detail_request_contract_dict[self.reqid] = contract
         self.contract_detail_request_symbol_dict[self.reqid] = sym
         self.reqid += 1
@@ -209,44 +270,50 @@ class InteractiveBrokers(BrokerageBase):
         self.market_data_tick_dict[self.reqid] = tick_event
         self.reqid += 1
 
-    def subscribe_market_datas(self):
+    def subscribe_market_datas(self) -> None:
         """
-        Subscribe market L1 data for all symbols used in strategies. Market data for this symbol will then be streamed to client.
-
+        Subscribe market L1 data for all symbols used in strategies.
+        Market data for this symbol will then be streamed to client.
         """
         syms = list(self.market_data_subscription_reverse_dict.keys())
         for sym in syms:
             self.subscribe_market_data(sym)
 
-    def unsubscribe_market_data(self, sym):
+    def unsubscribe_market_data(self, sym: str) -> None:
         """
         Unsubscribe market L1 data. Market data for this symbol will stop streaming to client.
 
-        :param sym: the symbol to be subscribed.
+        Parameters
+        ----------
+            sym: str
+                The symbol to be subscribed.
         """
         if not self.api.connected:
             return
 
-        if not sym in self.market_data_subscription_reverse_dict.keys():
+        if not sym in self.market_data_subscription_reverse_dict:
             return
 
         self.api.cancelMktData(self.market_data_subscription_reverse_dict[sym])
 
-    def subscribe_market_depth(self, sym):
+    def subscribe_market_depth(self, sym: str) -> None:
         """
         Subscribe market L2 data. Market data for this symbol will then be streamed to client.
 
-        :param sym: the symbol to be subscribed.
+        Parameters
+        ----------
+            sym: str
+                The symbol to be subscribed.
         """
         if not self.api.connected:
             return
 
-        if sym in self.market_depth_subscription_reverse_dict.keys():
+        if sym in self.market_depth_subscription_reverse_dict:
             return
 
         contract = InteractiveBrokers.symbol_to_contract(sym)
         if not contract:
-            _logger.error(f"Failed to find contract to subscribe market depth: {sym}")
+            _logger.error("Failed to find contract to subscribe market depth: %s", sym)
             return
 
         self.api.reqMktDepth(self.reqid, contract, 5, True, [])
@@ -254,21 +321,24 @@ class InteractiveBrokers(BrokerageBase):
         self.market_depth_subscription_dict[self.reqid] = sym
         self.market_depth_subscription_reverse_dict[sym] = self.reqid
 
-    def unsubscribe_market_depth(self, sym):
+    def unsubscribe_market_depth(self, sym) -> None:
         """
         Unsubscribe market L2 data. Market data for this symbol will stop streaming to client.
 
-        :param sym: the symbol to be subscribed.
+        Parameters
+        ----------
+            sym: str
+                The symbol to be subscribed.
         """
         if not self.api.connected:
             return
 
-        if not sym in self.market_depth_subscription_reverse_dict.keys():
+        if not sym in self.market_depth_subscription_reverse_dict:
             return
 
         self.api.cancelMktDepth(self.market_depth_subscription_reverse_dict[sym], True)
 
-    def subscribe_account_summary(self):
+    def subscribe_account_summary(self) -> None:
         """
         Request account summary from broker
         """
@@ -282,7 +352,7 @@ class InteractiveBrokers(BrokerageBase):
         self.api.reqAccountSummary(self.account_summary_reqid, "All", "$LEDGER")
         self.reqid += 1
 
-    def unsubscribe_account_summary(self):
+    def unsubscribe_account_summary(self) -> None:
         """
         Stop receiving account summary from broker
         """
@@ -295,25 +365,32 @@ class InteractiveBrokers(BrokerageBase):
         self.api.cancelAccountSummary(self.account_summary_reqid)
         self.account_summary_reqid = -1
 
-    def subscribe_positions(self):
+    def subscribe_positions(self) -> None:
         """
         Request existing positions from broker
         """
         self.api.reqPositions()
 
-    def unsubscribe_positions(self):
+    def unsubscribe_positions(self) -> None:
         """
         Stop receiving existing position message from broker.
         """
         self.api.cancelPositions()
 
-    def request_historical_data(self, symbol, end=None):
+    def request_historical_data(self, symbol: str, end: datetime = None) -> None:
         """
         Request 1800 S (30 mins) historical bar data from Interactive Brokers.
 
-        :param symbol: the contract whose historical data is requested
-        :param end: the end time of the historical data
-        :return: no returns; data is broadcasted through message queue
+        Parameters
+        ----------
+            symbol: str
+                The contract whose historical data is requested.
+            end: datetime
+                The end time of the historical data.
+
+        Returns
+        -------
+            No returns; data is broadcasted through message queue.
         """
         ib_contract = InteractiveBrokers.symbol_to_contract(symbol)
 
@@ -337,61 +414,85 @@ class InteractiveBrokers(BrokerageBase):
         )  # first 1 is useRTH
         self.reqid += 1
 
-    def cancel_historical_data(self, reqid):
+    def cancel_historical_data(self, reqid: int) -> None:
         """
         Cancel historical data request. Usually not necessary.
 
-        :param reqid: the historical data request id
+        Parameters
+        ----------
+            reqid: int
+                The historical data request id.
         """
         self.api.cancelHistoricalData(reqid)
 
-    def request_historical_ticks(self, symbol, start_time, reqtype="TICKS"):
+    def request_historical_ticks(
+        self, symbol: str, start_time: str, reqtype="TICKS"
+    ) -> None:
         """
         Request historical time and sales data from Interactive Brokers.
         See here https://interactivebrokers.github.io/tws-api/historical_time_and_sales.html
 
-        :param symbol: the contract whose historical data is requested
-        :param start_time:  i.e. "20170701 12:01:00". Uses TWS timezone specified at login
-        :param reqtype: TRADES, BID_ASK, or MIDPOINT
-        :return: no returns; data is broadcasted through message queue
+        Parameters
+        ----------
+            symbol: str
+                The contract whose historical data is requested.
+
+            start_time: str
+                i.e. "20170701 12:01:00". Uses TWS timezone specified at login.
+
+            reqtype: str
+                TRADES, BID_ASK, or MIDPOINT
+
+        Returns
+        -------
+            No returns; data is broadcasted through message queue.
         """
         ib_contract = InteractiveBrokers.symbol_to_contract(symbol)
-        useRth = 1
+        use_rth = 1
         self.hist_data_request_dict[self.reqid] = symbol
         self.api.reqHistoricalTicks(
-            self.reqid, ib_contract, start_time, "", 1000, reqtype, useRth, True, []
+            self.reqid, ib_contract, start_time, "", 1000, reqtype, use_rth, True, []
         )
         self.reqid += 1
 
-    def reqCurrentTime(self):
+    def req_current_time(self) -> None:
         """
         Request server time on broker side
         """
         self.api.reqCurrentTime()
 
-    def setServerLogLevel(self, level=1):
+    def set_server_log_level(self, level: int = 1) -> None:
         """
         Set server side log level or the log messages received from server.
 
-        :param level: log level
+        Parameters
+        ----------
+            level: int
+                Log level. 1: error, 2: warning, 3: information, 4: detail.
         """
         self.api.setServerLogLevel(level)
 
-    def heartbeat(self):
+    def heartbeat(self) -> None:
         """
         Request server time as heartbeat
         """
         if self.api.isConnected():
             _logger.info("reqPositions")
             # self.api.reqPositions()
-            self.reqCurrentTime()  # EWrapper::currentTime
+            self.req_current_time()  # EWrapper::currentTime
 
-    def log(self, msg):
+    def log(self, msg: str) -> None:
         """
         Broadcast server log message through message queue
 
-        :param msg: message to be broadcast
-        :return: no return; log meesage is placed into message queue
+        Parameters
+        ----------
+            msg: str
+                Message to be broadcast.
+
+        Returns
+        -------
+            No return; log meesage is placed into message queue.
         """
         timestamp = datetime.now().strftime("%H:%M:%S.%f")
         log_event = LogEvent()
@@ -400,7 +501,7 @@ class InteractiveBrokers(BrokerageBase):
         self.event_engine.put(log_event)
 
     @staticmethod
-    def symbol_to_contract(symbol):
+    def symbol_to_contract(symbol: str) -> None:
         """
         Convert fulll symbol string to IB contract
 
@@ -409,8 +510,14 @@ class InteractiveBrokers(BrokerageBase):
         ES.NQ BAG 371749798 1 GLOBEX 371749745 1 GLOBEX GLOBEX     # Inter-comdty
         CL.HO BAG 257430162 1 NYMEX 174230608 1 NYMEX NYMEX
 
-        :param symbol: full symbol, e.g. AMZN STK SMART
-        :return: IB contract
+        Parameters
+        ----------
+            symbol: str
+                Full symbol, e.g. AMZN STK SMART.
+
+        Returns
+        -------
+            IB contract.
         """
         symbol_fields = symbol.split(" ")
         ib_contract = Contract()
@@ -486,17 +593,23 @@ class InteractiveBrokers(BrokerageBase):
             ib_contract.exchange = symbol_fields[8]  # NYMEX
             ib_contract.currency = "USD"
         else:
-            _logger.error(f"invalid contract {symbol}")
+            _logger.error("invalid contract %s", symbol)
 
         return ib_contract
 
     @staticmethod
-    def contract_to_symbol(ib_contract):
+    def contract_to_symbol(ib_contract: Contract) -> str:
         """
         Convert IB contract to full symbol
 
-        :param ib_contract: IB contract
-        :return: full symbol
+        Parameters
+        ----------
+            ib_contract: Contract
+                IB contract.
+
+        Returns
+        -------
+            str: Full symbol.
         """
         full_symbol = ""
         if ib_contract.secType == "STK":
@@ -552,12 +665,18 @@ class InteractiveBrokers(BrokerageBase):
         return full_symbol
 
     @staticmethod
-    def order_to_ib_order(order_event):
+    def order_to_ib_order(order_event: OrderEvent) -> Order:
         """
         Convert order event to IB order
 
-        :param order_event: internal representation of order
-        :return:  IB representation of order
+        Parameters
+        ----------
+            order_event: OrderEvent
+                Internal representation of order.
+
+        Returns
+        -------
+            Order: IB representation of order.
         """
         ib_order = Order()
         ib_order.action = "BUY" if order_event.order_size > 0 else "SELL"
@@ -580,12 +699,18 @@ class InteractiveBrokers(BrokerageBase):
         return ib_order
 
     @staticmethod
-    def ib_order_to_order(ib_order):
+    def ib_order_to_order(ib_order: Order) -> OrderEvent:
         """
         Convert IB order to order event
 
-        :param ib_order: IB representation of order
-        :return: internal representation of order
+        Parameters
+        ----------
+            ib_order: Order
+                IB representation of order.
+
+        Returns
+        -------
+            OrderEvent: Internal representation of order.
         """
         order_event = OrderEvent()
         # order_event.order_id = orderId
@@ -613,6 +738,10 @@ class InteractiveBrokers(BrokerageBase):
 
 
 class IBApi(EWrapper, EClient):
+    """
+    Interactive Brokers API wrapper.
+    """
+
     def __init__(self, broker):
         EWrapper.__init__(self)
         EClient.__init__(self, wrapper=self)
@@ -620,33 +749,35 @@ class IBApi(EWrapper, EClient):
         self.broker = broker
         self.thread = Thread(target=self.run)
 
-        self.nKeybInt = 0
+        self.nKeybInt = 0  # pylint: disable=invalid-name
         self.connected = False
-        self.globalCancelOnly = False
-        self.simplePlaceOid = None
+        self.globalCancelOnly = False  # pylint: disable=invalid-name
+        self.simplePlaceOid = None  # pylint: disable=invalid-name
 
-    # ------------------------------------------ EClient functions --------------------------------------- #
-    def keyboardInterrupt(self):
+    def keyboardInterrupt(self) -> None:
+        """
+        Keyboard interrupt handler.
+        """
         self.nKeybInt += 1
         if self.nKeybInt == 1:
             self.stop()
         else:
             _logger.info("Finishing test")
 
-    def stop(self):
+    def stop(self) -> None:
+        """
+        Stop the IB API.
+        """
         _logger.info("Executing cancels")
         _logger.info("Executing cancels ... finished")
 
-    # ------------------------------------------------------------------ End EClient functions -------------------------------------------------------- #
-
-    # ---------------------------------------------------------------------- EWrapper functions -------------------------------------------------------- #
-    def connectAck(self):
+    def connectAck(self) -> None:
         if self.asynchronous:
             self.startApi()
         self.connected = True
         _logger.info("IB connected")
 
-    def nextValidId(self, orderId: int):
+    def nextValidId(self, orderId: int) -> None:
         super().nextValidId(orderId)
         msg = f"nextValidOrderId: {orderId}"
         _logger.info(msg)
@@ -656,13 +787,24 @@ class IBApi(EWrapper, EClient):
         # we can start now
         self.broker.subscribe_market_datas()
 
-    def error(self, reqId: TickerId, errorCode: int, errorString: str):
+    def error(self, reqId: TickerId, errorCode: int, errorString: str) -> None:
         super().error(reqId, errorCode, errorString)
         msg = f"Error. id: {reqId}, Code: {errorCode}, Msg: {errorString}"
         _logger.error(msg)
         self.broker.log(msg)
 
     def winError(self, text: str, lastError: int):
+        """
+        Win error.
+
+        Parameters
+        ----------
+            text: str
+                Error text.
+
+            lastError: int
+                Last error.
+        """
         super().winError(text, lastError)
         msg = f"Error Id: {lastError}, Msg: {text}"
         _logger.error(msg)
@@ -670,16 +812,14 @@ class IBApi(EWrapper, EClient):
 
     def openOrder(
         self, orderId: OrderId, contract: Contract, order: Order, orderState: OrderState
-    ):
-        """
-        Currently IB sends out two openOrder and two OrderStatus; so there are four filled order_status sent out
-        """
+    ) -> None:
         super().openOrder(orderId, contract, order, orderState)
         msg = (
             f"OpenOrder. PermId: {order.permId}, ClientId:  {order.clientId}, OrderId: {orderId}, "
             f"Account: {order.account}, Symbol: {contract.symbol}, SecType: {contract.secType}, "
             f"Exchange: {contract.exchange}, Action: {order.action}, OrderType: {order.orderType}, "
-            f"TotalQty: {order.totalQuantity}, CashQty: {order.cashQty}, LmtPrice: {order.lmtPrice}, "
+            f"TotalQty: {order.totalQuantity}, CashQty: {order.cashQty}, "
+            f"LmtPrice: {order.lmtPrice}, "
             f"AuxPrice: {order.auxPrice}, Status: {orderState.status}"
         )
         _logger.info(msg)
@@ -714,7 +854,7 @@ class IBApi(EWrapper, EClient):
     def openOrderEnd(self):
         super().openOrderEnd()
         _logger.info("OpenOrderEnd")
-        _logger.info(f"Received openOrders {len(list(self.broker.order_dict.keys()))}")
+        _logger.info("Received openOrders %s", len(list(self.broker.order_dict.keys())))
 
     def orderStatus(
         self,
@@ -745,8 +885,10 @@ class IBApi(EWrapper, EClient):
         )
         msg = (
             f"OrderStatus. Id: {orderId}, Status: {status}, Filled: {filled}, "
-            f"Remaining: {remaining}, AvgFillPrice: {avgFillPrice}, PermId: {permId}, ParentId: {parentId}, "
-            f"LastFillPrice: {lastFillPrice}, ClientId: {clientId}, WhyHeld: {whyHeld}, MktCapPrice: {mktCapPrice}"
+            f"Remaining: {remaining}, AvgFillPrice: {avgFillPrice}, "
+            f"PermId: {permId}, ParentId: {parentId}, "
+            f"LastFillPrice: {lastFillPrice}, ClientId: {clientId}, "
+            f"WhyHeld: {whyHeld}, MktCapPrice: {mktCapPrice}"
         )
         _logger.info(msg)
         self.broker.log(msg)
@@ -761,6 +903,7 @@ class IBApi(EWrapper, EClient):
             order_event.account = self.broker.account
             order_event.order_size = filled + remaining
             order_event.fill_size = filled
+            # pylint: disable=attribute-defined-outside-init
             self.order_type = OrderType.UNKNOWN
             self.order_status = OrderStatus.UNKNOWN
             order_event.order_time = datetime.now().strftime("%H:%M:%S.%f")
@@ -798,20 +941,27 @@ class IBApi(EWrapper, EClient):
         self, reqId: int, account: str, tag: str, value: str, currency: str
     ):
         super().accountSummary(reqId, account, tag, value, currency)
-        msg = f"AccountSummary. ReqId: {reqId}, Account: {account}, Tag: {tag}, Value: {value}, Currency: {currency}"
+        msg = (
+            f"AccountSummary. ReqId: {reqId}, Account: {account}, Tag: {tag}, "
+            f"Value: {value}, Currency: {currency}"
+        )
         _logger.info(msg)
         self.broker.log(msg)
 
     def accountSummaryEnd(self, reqId: int):
         super().accountSummaryEnd(reqId)
-        _logger.info(f"AccountSummaryEnd. ReqId: {reqId}")
+        _logger.info("AccountSummaryEnd. ReqId: %s", reqId)
 
     def updateAccountValue(self, key: str, val: str, currency: str, accountName: str):
         """
-        Just as with the TWS' Account Window, unless there is a position change this information is updated at a fixed interval of three minutes.
+        Just as with the TWS' Account Window, unless there is a position change
+        this information is updated at a fixed interval of three minutes.
         """
         super().updateAccountValue(key, val, currency, accountName)
-        msg = f"UpdateAccountValue. Key: {key}, Value: {val},  Currency: {currency}, AccountName: {accountName}"
+        msg = (
+            f"UpdateAccountValue. Key: {key}, Value: {val}, "
+            f"Currency: {currency}, AccountName: {accountName}"
+        )
         _logger.info(msg)
 
         self.broker.account_summary.timestamp = datetime.now().strftime("%H:%M:%S.%f")
@@ -833,6 +983,7 @@ class IBApi(EWrapper, EClient):
                 self.broker.account_summary
             )  # assume alphabatic order
 
+    # pylint: disable=too-many-arguments
     def updatePortfolio(
         self,
         contract: Contract,
@@ -845,7 +996,8 @@ class IBApi(EWrapper, EClient):
         accountName: str,
     ):
         """
-        Just as with the TWS' Account Window, unless there is a position change this information is updated at a fixed interval of three minutes.
+        Just as with the TWS' Account Window, unless there is a position change
+        this information is updated at a fixed interval of three minutes.
         """
         super().updatePortfolio(
             contract,
@@ -858,9 +1010,12 @@ class IBApi(EWrapper, EClient):
             accountName,
         )
         msg = (
-            f"UpdatePortfolio. Symbol: {contract.symbol}, SecType: {contract.secType}, Exchange: {contract.exchange}, "
-            f"Position: {position}, MarketPrice: {marketPrice}, MarketValue: {marketValue}, AverageCost: {averageCost}, "
-            f"UnrealizedPNL: {unrealizedPNL}, RealizedPNL: {realizedPNL}, AccountName: {accountName}"
+            f"UpdatePortfolio. Symbol: {contract.symbol}, SecType: {contract.secType}, "
+            f"Exchange: {contract.exchange}, "
+            f"Position: {position}, MarketPrice: {marketPrice}, "
+            f"MarketValue: {marketValue}, AverageCost: {averageCost}, "
+            f"UnrealizedPNL: {unrealizedPNL}, RealizedPNL: {realizedPNL}, "
+            f"AccountName: {accountName}"
         )
         _logger.info(msg)
 
@@ -896,7 +1051,8 @@ class IBApi(EWrapper, EClient):
     ):
         super().position(account, contract, position, avgCost)
         msg = (
-            f"Position. Account: {account}, Symbol: {contract.symbol}, SecType: {contract.secType}, "
+            f"Position. Account: {account}, Symbol: {contract.symbol}, "
+            f"SecType: {contract.secType}, "
             f"Currency: {contract.currency}, Position: {position}, Avg cost: {avgCost}"
         )
         _logger.info(msg)
@@ -916,14 +1072,16 @@ class IBApi(EWrapper, EClient):
     ):
         super().positionMulti(reqId, account, modelCode, contract, pos, avgCost)
         msg = (
-            f"PositionMulti. RequestId: {reqId}, Account: {account}, ModelCode: {modelCode}, Symbol: {contract.symbol}, "
-            f"SecType: {contract.secType}, Currency: {contract.currency}, Position: {pos}, AvgCost: {avgCost}"
+            f"PositionMulti. RequestId: {reqId}, Account: {account}, "
+            f"ModelCode: {modelCode}, Symbol: {contract.symbol}, "
+            f"SecType: {contract.secType}, Currency: {contract.currency}, Position: {pos}, "
+            f"AvgCost: {avgCost}"
         )
         _logger.info(msg)
 
     def positionMultiEnd(self, reqId: int):
         super().positionMultiEnd(reqId)
-        _logger.info(f"PositionMultiEnd. RequestId: {reqId}")
+        _logger.info("PositionMultiEnd. RequestId: %s", reqId)
 
     def accountUpdateMulti(
         self,
@@ -936,26 +1094,30 @@ class IBApi(EWrapper, EClient):
     ):
         super().accountUpdateMulti(reqId, account, modelCode, key, value, currency)
         msg = (
-            f"AccountUpdateMulti. RequestId: {reqId}, Account: {account}, ModelCode: {modelCode}, Key: {key}, "
+            f"AccountUpdateMulti. RequestId: {reqId}, Account: {account}, "
+            f"ModelCode: {modelCode}, Key: {key}, "
             f"Value: {value}, Currency: {currency}"
         )
         _logger.info(msg)
 
     def accountUpdateMultiEnd(self, reqId: int):
         super().accountUpdateMultiEnd(reqId)
-        _logger.info(f"AccountUpdateMultiEnd. RequestId: {reqId}")
+        _logger.info("AccountUpdateMultiEnd. RequestId: %s", reqId)
 
     def familyCodes(self, familyCodes: ListOfFamilyCode):
         super().familyCodes(familyCodes)
         _logger.info("Family Codes:")
-        for familyCode in familyCodes:
-            _logger.info(f"FamilyCode. {familyCode}")
+        for family_code in familyCodes:
+            _logger.info("FamilyCode. %s", family_code)
 
     def pnl(
         self, reqId: int, dailyPnL: float, unrealizedPnL: float, realizedPnL: float
     ):
         super().pnl(reqId, dailyPnL, unrealizedPnL, realizedPnL)
-        msg = f"Daily PnL. ReqId: {reqId}, DailyPnL: {dailyPnL}, UnrealizedPnL: {unrealizedPnL}, RealizedPnL: {realizedPnL}"
+        msg = (
+            f"Daily PnL. ReqId: {reqId}, DailyPnL: {dailyPnL}, "
+            f"UnrealizedPnL: {unrealizedPnL}, RealizedPnL: {realizedPnL}"
+        )
         _logger.info(msg)
 
     def pnlSingle(
@@ -969,14 +1131,15 @@ class IBApi(EWrapper, EClient):
     ):
         super().pnlSingle(reqId, pos, dailyPnL, unrealizedPnL, realizedPnL, value)
         msg = (
-            f"Daily PnL Single. ReqId: {reqId}, Position: {pos}, DailyPnL: {dailyPnL}, UnrealizedPnL: {unrealizedPnL}, "
+            f"Daily PnL Single. ReqId: {reqId}, Position: {pos}, "
+            f"DailyPnL: {dailyPnL}, UnrealizedPnL: {unrealizedPnL}, "
             f"RealizedPnL: {realizedPnL}, Value: {value}"
         )
         _logger.info(msg)
 
     def marketDataType(self, reqId: TickerId, marketDataType: int):
         super().marketDataType(reqId, marketDataType)
-        _logger.info(f"MarketDataType. ReqId: {reqId}, Type: {marketDataType}")
+        _logger.info("MarketDataType. ReqId: %s, Type: %s", reqId, marketDataType)
 
     def tickPrice(
         self, reqId: TickerId, tickType: TickType, price: float, attrib: TickAttrib
@@ -988,10 +1151,10 @@ class IBApi(EWrapper, EClient):
         if tickType == TickTypeEnum.BID:
             tick_event.tick_type = TickType.BID
             tick_event.bid_price_L1 = price
-        elif tickType == TickTypeEnum.ASK:
+        elif tickType == TickTypeEnum.ASK:  # pylint: disable=no-member
             tick_event.tick_type = TickType.ASK
             tick_event.ask_price_L1 = price
-        elif tickType == TickTypeEnum.LAST:
+        elif tickType == TickTypeEnum.LAST:  # pylint: disable=no-member
             tick_event.tick_type = TickType.TRADE
             tick_event.price = price
         else:
@@ -1004,13 +1167,13 @@ class IBApi(EWrapper, EClient):
 
         tick_event = self.broker.market_data_tick_dict[reqId]
         tick_event.timestamp = datetime.now()
-        if tickType == TickTypeEnum.BID_SIZE:
+        if tickType == TickTypeEnum.BID_SIZE:  # pylint: disable=no-member
             tick_event.tick_type = TickType.BID
             tick_event.bid_size_L1 = size
-        elif tickType == TickTypeEnum.ASK_SIZE:
+        elif tickType == TickTypeEnum.ASK_SIZE:  # pylint: disable=no-member
             tick_event.tick_type = TickType.ASK
             tick_event.ask_size_L1 = size
-        elif tickType == TickTypeEnum.LAST_SIZE:
+        elif tickType == TickTypeEnum.LAST_SIZE:  # pylint: disable=no-member
             tick_event.tick_type = TickType.TRADE
             tick_event.size = size
         else:
@@ -1019,13 +1182,13 @@ class IBApi(EWrapper, EClient):
         self.broker.tick_event_engine.put(copy(tick_event))
 
     def tickGeneric(self, reqId: TickerId, tickType: TickType, value: float):
+        # pylint: disable=useless-super-delegation
         super().tickGeneric(reqId, tickType, value)
         # _logger.info(f"TickGeneric. TickerId: {reqId}, TickType: {tickType}, Value: {value}")
-        pass
 
     def tickString(self, reqId: TickerId, tickType: TickType, value: str):
+        # pylint: disable=useless-super-delegation
         super().tickString(reqId, tickType, value)
-        pass
         # tick_event = self.broker.market_data_tick_dict[reqId]
         # tick_event.timestamp = datetime.fromtimestamp(int(value))
         # self.broker.tick_event_engine.put(copy(tick_event))
@@ -1044,13 +1207,13 @@ class IBApi(EWrapper, EClient):
         super().marketRule(marketRuleId, priceIncrements)
         msg = f"Market Rule ID: {marketRuleId}"
         _logger.info(msg)
-        for priceIncrement in priceIncrements:
-            msg = f"Price Increment. {priceIncrement}"
+        for price_increment in priceIncrements:
+            msg = f"Price Increment. {price_increment}"
             _logger.info(msg)
 
-    def orderBound(self, orderId: int, apiClientId: int, apiOrderId: int):
-        super().orderBound(orderId, apiClientId, apiOrderId)
-        msg = f"OrderBound. OrderId: {orderId}, ApiClientId: {apiClientId}, ApiOrderId: {apiOrderId}"
+    def orderBound(self, reqId: int, apiClientId: int, apiOrderId: int):
+        super().orderBound(reqId, apiClientId, apiOrderId)
+        msg = f"OrderBound. OrderId: {reqId}, ApiClientId: {apiClientId}, ApiOrderId: {apiOrderId}"
         _logger.info(msg)
 
     def tickByTickAllLast(
@@ -1060,7 +1223,7 @@ class IBApi(EWrapper, EClient):
         time: int,
         price: float,
         size: int,
-        tickAtrribLast: TickAttribLast,
+        tickAttribLast: TickAttribLast,
         exchange: str,
         specialConditions: str,
     ):
@@ -1070,18 +1233,18 @@ class IBApi(EWrapper, EClient):
             time,
             price,
             size,
-            tickAtrribLast,
+            tickAttribLast,
             exchange,
             specialConditions,
         )
         if tickType == 1:
-            _logger.info(f"Last.")
+            _logger.info("Last.")
         else:
             _logger.info("AllLast.")
         msg = (
             f'ReqId: {reqId}, Time: {datetime.fromtimestamp(time).strftime("%Y%m%d %H:%M:%S")}, '
             f"Price: {price}, Size: {size}, Exch: {exchange}, Spec Cond: {specialConditions}, "
-            f"PastLimit: {tickAtrribLast.pastLimit}, Unreported: {tickAtrribLast.unreported}"
+            f"PastLimit: {tickAttribLast.pastLimit}, Unreported: {tickAttribLast.unreported}"
         )
         _logger.info(msg)
 
@@ -1099,15 +1262,21 @@ class IBApi(EWrapper, EClient):
             reqId, time, bidPrice, askPrice, bidSize, askSize, tickAttribBidAsk
         )
         msg = (
-            f'BidAsk. ReqId: {reqId}, Time: {datetime.fromtimestamp(time).strftime("%Y%m%d %H:%M:%S")}, '
+            f"BidAsk. ReqId: {reqId}, "
+            f'Time: {datetime.fromtimestamp(time).strftime("%Y%m%d %H:%M:%S")}, '
             f"BidPrice: {bidPrice}, AskPrice: {askPrice}, BidSize: {bidSize}, AskSize: {askSize}, "
-            f"BidPastLow: {tickAttribBidAsk.bidPastLow}, AskPastHigh: {tickAttribBidAsk.askPastHigh}"
+            f"BidPastLow: {tickAttribBidAsk.bidPastLow}, "
+            f"AskPastHigh: {tickAttribBidAsk.askPastHigh}"
         )
         _logger.info(msg)
 
     def tickByTickMidPoint(self, reqId: int, time: int, midPoint: float):
         super().tickByTickMidPoint(reqId, time, midPoint)
-        msg = 'Midpoint. ReqId: {reqId}, Time: {datetime.fromtimestamp(time).strftime("%Y%m%d %H:%M:%S")}, MidPoint: {midPoint}'
+        msg = (
+            f"Midpoint. ReqId: {reqId}, "
+            f'Time: {datetime.fromtimestamp(time).strftime("%Y%m%d %H:%M:%S")}, '
+            f"MidPoint: {midPoint}"
+        )
         _logger.info(msg)
 
     def updateMktDepth(
@@ -1120,7 +1289,10 @@ class IBApi(EWrapper, EClient):
         size: int,
     ):
         super().updateMktDepth(reqId, position, operation, side, price, size)
-        msg = f"UpdateMarketDepth. ReqId: {reqId}, Position: {position}, Operation: {operation}, Side: {side}, Price: {price}, Size: {size}"
+        msg = (
+            f"UpdateMarketDepth. ReqId: {reqId}, Position: {position}, "
+            f"Operation: {operation}, Side: {side}, Price: {price}, Size: {size}"
+        )
         _logger.info(msg)
 
     def updateMktDepthL2(
@@ -1138,8 +1310,10 @@ class IBApi(EWrapper, EClient):
             reqId, position, marketMaker, operation, side, price, size, isSmartDepth
         )
         msg = (
-            f"UpdateMarketDepthL2. ReqId: {reqId}, Position: {position}, MarketMaker: {marketMaker}, "
-            f"Operation: {operation}, Side: {side}, Price: {price}, Size: {size}, isSmartDepth: {isSmartDepth}"
+            f"UpdateMarketDepthL2. ReqId: {reqId}, "
+            f"Position: {position}, MarketMaker: {marketMaker}, "
+            f"Operation: {operation}, Side: {side}, Price: {price}, "
+            f"Size: {size}, isSmartDepth: {isSmartDepth}"
         )
         _logger.info(msg)
 
@@ -1174,7 +1348,7 @@ class IBApi(EWrapper, EClient):
         _logger.info(msg)
 
     def historicalData(self, reqId: int, bar: BarData):
-        _logger.info(f"HistoricalData. ReqId: {reqId}, BarData. {bar}")
+        _logger.info("HistoricalData. ReqId: %s, BarData. %s", reqId, bar)
 
         bar_event = BarEvent()
         bar_event.full_symbol = self.broker.hist_data_request_dict[reqId]
@@ -1199,19 +1373,19 @@ class IBApi(EWrapper, EClient):
 
     def historicalTicks(self, reqId: int, ticks: ListOfHistoricalTick, done: bool):
         for tick in ticks:
-            _logger.info(f"HistoricalTick. ReqId: {reqId}, {tick}")
+            _logger.info("HistoricalTick. ReqId: %s, %s", reqId, tick)
 
     def historicalTicksBidAsk(
         self, reqId: int, ticks: ListOfHistoricalTickBidAsk, done: bool
     ):
         for tick in ticks:
-            _logger.info(f"HistoricalTickBidAsk. ReqId: {reqId}, {tick}")
+            _logger.info("HistoricalTickBidAsk. ReqId: %s, %s", reqId, tick)
 
     def historicalTicksLast(
         self, reqId: int, ticks: ListOfHistoricalTickLast, done: bool
     ):
         for tick in ticks:
-            _logger.info("HistoricalTickLast. ReqId: {reqId}, {tick}")
+            _logger.info("HistoricalTickLast. ReqId: %s, %s", reqId, tick)
 
     def securityDefinitionOptionParameter(
         self,
@@ -1233,8 +1407,10 @@ class IBApi(EWrapper, EClient):
             strikes,
         )
         msg = (
-            f"SecurityDefinitionOptionParameter. ReqId: {reqId}, Exchange: {exchange}, Underlying conId: {underlyingConId}, "
-            f"TradingClass: {tradingClass}, Multiplier: {multiplier}, Expirations: {expirations}, Strikes: {str(strikes)}"
+            f"SecurityDefinitionOptionParameter. ReqId: {reqId}, "
+            f"Exchange: {exchange}, Underlying conId: {underlyingConId}, "
+            f"TradingClass: {tradingClass}, Multiplier: {multiplier}, "
+            f"Expirations: {expirations}, Strikes: {str(strikes)}"
         )
         _logger.info(msg)
 
@@ -1246,6 +1422,7 @@ class IBApi(EWrapper, EClient):
         self,
         reqId: TickerId,
         tickType: TickType,
+        tickAttrib: TickAttrib,
         impliedVol: float,
         delta: float,
         optPrice: float,
@@ -1255,9 +1432,11 @@ class IBApi(EWrapper, EClient):
         theta: float,
         undPrice: float,
     ):
+        # pylint: disable=arguments-differ
         super().tickOptionComputation(
             reqId,
             tickType,
+            tickAttrib,
             impliedVol,
             delta,
             optPrice,
@@ -1268,8 +1447,10 @@ class IBApi(EWrapper, EClient):
             undPrice,
         )
         msg = (
-            f"TickOptionComputation. TickerId: {reqId}, TickType: {tickType}, ImpliedVolatility: {impliedVol}, "
-            f"Delta: {delta}, OptionPrice: {optPrice}, pvDividend: {pvDividend}, Gamma: {gamma}, "
+            f"TickOptionComputation. TickerId: {reqId}, "
+            f"TickType: {tickType}, ImpliedVolatility: {impliedVol}, "
+            f"Delta: {delta}, OptionPrice: {optPrice}, "
+            f"pvDividend: {pvDividend}, Gamma: {gamma}, "
             f"Vega: {vega}, Theta: {theta}, UnderlyingPrice: {undPrice}"
         )
         _logger.info(msg)
@@ -1284,36 +1465,50 @@ class IBApi(EWrapper, EClient):
         extraData: str,
     ):
         msg = (
-            f"TickNews. TickerId: {tickerId}, TimeStamp: {timeStamp}, ProviderCode: {providerCode}, "
+            f"TickNews. TickerId: {tickerId}, "
+            f"TimeStamp: {timeStamp}, ProviderCode: {providerCode}, "
             f"ArticleId: {articleId}, Headline: {headline}, ExtraData: {extraData}"
         )
         _logger.info(msg)
 
     def historicalNews(
-        self, reqId: int, time: str, providerCode: str, articleId: str, headline: str
+        self,
+        requestId: int,
+        time: str,
+        providerCode: str,
+        articleId: str,
+        headline: str,
     ):
         msg = (
-            f"HistoricalNews. ReqId: {reqId}, Time: {time}, ProviderCode: {providerCode}, "
+            f"HistoricalNews. ReqId: {requestId}, Time: {time}, ProviderCode: {providerCode}, "
             f"ArticleId: {articleId}, Headline: {headline}"
         )
         _logger.info(msg)
 
-    def historicalNewsEnd(self, reqId: int, hasMore: bool):
-        _logger.info(f"HistoricalNewsEnd. ReqId: {reqId}, HasMore: {hasMore}")
+    def historicalNewsEnd(self, requestId: int, hasMore: bool):
+        _logger.info("HistoricalNewsEnd. ReqId: %s, HasMore: %s", requestId, hasMore)
 
     def newsProviders(self, newsProviders: ListOfNewsProviders):
         _logger.info("NewsProviders: ")
         for provider in newsProviders:
-            _logger.info(f"NewsProvider. {provider}")
+            _logger.info("NewsProvider. %s", provider)
 
-    def newsArticle(self, reqId: int, articleType: int, articleText: str):
-        msg = f"NewsArticle. ReqId: {reqId}, ArticleType: {articleType}, ArticleText: {articleText}"
+    def newsArticle(self, requestId: int, articleType: int, articleText: str):
+        msg = (
+            f"NewsArticle. ReqId: {requestId}, "
+            f"ArticleType: {articleType}, ArticleText: {articleText}"
+        )
         _logger.info(msg)
 
     def contractDetails(self, reqId: int, contractDetails: ContractDetails):
         super().contractDetails(reqId, contractDetails)
         _logger.info(
-            f"Contract Detail: {contractDetails.contract.symbol}, {contractDetails.contract.localSymbol}, {contractDetails.contract.primaryExchange}, {contractDetails.contract.exchange}, {contractDetails.contract.multiplier}"
+            "Contract Detail: %s, %s, %s, %s, %s",
+            contractDetails.contract.symbol,
+            contractDetails.contract.localSymbol,
+            contractDetails.contract.primaryExchange,
+            contractDetails.contract.exchange,
+            contractDetails.contract.multiplier,
         )
         if reqId in self.broker.contract_detail_request_contract_dict.keys():
             self.broker.contract_detail_request_contract_dict[
@@ -1327,43 +1522,44 @@ class IBApi(EWrapper, EClient):
             ] = self.broker.contract_detail_request_symbol_dict[reqId]
         else:
             _logger.error(
-                f"Orphaned contract details request {reqId}, {contractDetails.underSymbol}"
+                "Orphaned contract details request %s, %s",
+                reqId,
+                contractDetails.underSymbol,
             )
 
     def bondContractDetails(self, reqId: int, contractDetails: ContractDetails):
+        # pylint: disable=useless-super-delegation
         super().bondContractDetails(reqId, contractDetails)
 
     def contractDetailsEnd(self, reqId: int):
         super().contractDetailsEnd(reqId)
-        _logger.info(f"ContractDetailsEnd. ReqId: {reqId}")
+        _logger.info("ContractDetailsEnd. ReqId: %s", reqId)
 
     def symbolSamples(
         self, reqId: int, contractDescriptions: ListOfContractDescription
     ):
         super().symbolSamples(reqId, contractDescriptions)
-        _logger.info(f"Symbol Samples. Request Id: {reqId}")
+        _logger.info("Symbol Samples. Request Id: %s", reqId)
 
-        for contractDescription in contractDescriptions:
-            derivSecTypes = ""
-            for derivSecType in contractDescription.derivativeSecTypes:
-                derivSecTypes += derivSecType
-                derivSecTypes += " "
+        for contract_description in contractDescriptions:
+            deriv_sec_types = ""
+            for deriv_sec_type in contract_description.derivativeSecTypes:
+                deriv_sec_types += deriv_sec_type
+                deriv_sec_types += " "
             _logger.info(
                 "Contract: conId:%s, symbol:%s, secType:%s primExchange:%s, "
-                "currency:%s, derivativeSecTypes:%s"
-                % (
-                    contractDescription.contract.conId,
-                    contractDescription.contract.symbol,
-                    contractDescription.contract.secType,
-                    contractDescription.contract.primaryExchange,
-                    contractDescription.contract.currency,
-                    derivSecTypes,
-                )
+                "currency:%s, derivativeSecTypes:%s",
+                contract_description.contract.conId,
+                contract_description.contract.symbol,
+                contract_description.contract.secType,
+                contract_description.contract.primaryExchange,
+                contract_description.contract.currency,
+                deriv_sec_types,
             )
 
     def scannerParameters(self, xml: str):
         super().scannerParameters(xml)
-        open("log/scanner.xml", "w").write(xml)
+        open("log/scanner.xml", "w", encoding="utf-8").write(xml)
         _logger.info("ScannerParameters received.")
 
     def scannerData(
@@ -1376,20 +1572,20 @@ class IBApi(EWrapper, EClient):
         projection: str,
         legsStr: str,
     ):
+        # pylint: disable=useless-super-delegation
         super().scannerData(
             reqId, rank, contractDetails, distance, benchmark, projection, legsStr
         )
-        pass
 
     def scannerDataEnd(self, reqId: int):
         super().scannerDataEnd(reqId)
-        _logger.info(f"ScannerDataEnd. ReqId: {reqId}")
+        _logger.info("ScannerDataEnd. ReqId: %s", reqId)
 
     def smartComponents(self, reqId: int, smartComponentMap: SmartComponentMap):
         super().smartComponents(reqId, smartComponentMap)
         _logger.info("SmartComponents:")
-        for smartComponent in smartComponentMap:
-            _logger.info(f"SmartComponent. {smartComponent}")
+        for smart_component in smartComponentMap:
+            _logger.info("SmartComponent. %s", smart_component)
 
     def tickReqParams(
         self, tickerId: int, minTick: float, bboExchange: str, snapshotPermissions: int
@@ -1405,29 +1601,32 @@ class IBApi(EWrapper, EClient):
         super().mktDepthExchanges(depthMktDataDescriptions)
         _logger.info("MktDepthExchanges:")
         for desc in depthMktDataDescriptions:
-            _logger.info(f"DepthMktDataDescription. {desc}")
+            _logger.info("DepthMktDataDescription. %s", desc)
 
     def fundamentalData(self, reqId: TickerId, data: str):
         super().fundamentalData(reqId, data)
-        _logger.info(f"FundamentalData. ReqId: {reqId}, Data: {data}")
+        _logger.info("FundamentalData. ReqId: %s, Data: %s", reqId, data)
 
     def updateNewsBulletin(
         self, msgId: int, msgType: int, newsMessage: str, originExch: str
     ):
         super().updateNewsBulletin(msgId, msgType, newsMessage, originExch)
-        msg = f"News Bulletins. MsgId: {msgId}, Type: {msgType}, Message: {newsMessage}, Exchange of Origin: {originExch}"
+        msg = (
+            f"News Bulletins. MsgId: {msgId}, Type: {msgType}, "
+            f"Message: {newsMessage}, Exchange of Origin: {originExch}"
+        )
         _logger.info(msg)
 
     def receiveFA(self, faData: FaDataType, cxml: str):
         super().receiveFA(faData, cxml)
-        _logger.info(f"Receiving FA: {faData}")
-        open("log/fa.xml", "w").write(cxml)
+        _logger.info("Receiving FA: %s", faData)
+        open("log/fa.xml", "w", encoding="utf-8").write(cxml)
 
     def softDollarTiers(self, reqId: int, tiers: list):
         super().softDollarTiers(reqId, tiers)
-        _logger.info(f"SoftDollarTiers. ReqId: {reqId}")
+        _logger.info("SoftDollarTiers. ReqId: %s", reqId)
         for tier in tiers:
-            _logger.info(f"SoftDollarTier. {tier}")
+            _logger.info("SoftDollarTier. %s", tier)
 
     def currentTime(self, time: int):
         super().currentTime(time)
@@ -1438,8 +1637,10 @@ class IBApi(EWrapper, EClient):
     def execDetails(self, reqId: int, contract: Contract, execution: Execution):
         super().execDetails(reqId, contract, execution)
         msg = (
-            f"ExecDetails. ReqId: {reqId}, Symbol: {contract.symbol}, SecType: {contract.secType}, "
-            f"Currency: {contract.currency}, oid: {execution.orderId}, {execution.price}, {execution.shares}"
+            f"ExecDetails. ReqId: {reqId}, Symbol: {contract.symbol}, "
+            f"SecType: {contract.secType}, "
+            f"Currency: {contract.currency}, oid: {execution.orderId}, "
+            f"{execution.price}, {execution.shares}"
         )
         _logger.info(msg)
 
@@ -1476,26 +1677,31 @@ class IBApi(EWrapper, EClient):
 
     def displayGroupList(self, reqId: int, groups: str):
         super().displayGroupList(reqId, groups)
-        _logger.info(f"DisplayGroupList. ReqId: {reqId}, Groups: {groups}")
+        _logger.info("DisplayGroupList. ReqId: %s, Groups: %s", reqId, groups)
 
     def displayGroupUpdated(self, reqId: int, contractInfo: str):
         super().displayGroupUpdated(reqId, contractInfo)
         _logger.info(
-            f"DisplayGroupUpdated. ReqId: {reqId}, ContractInfo: {contractInfo}"
+            "DisplayGroupUpdated. ReqId: %s, ContractInfo: %s", reqId, contractInfo
         )
 
     def commissionReport(self, commissionReport: CommissionReport):
         super().commissionReport(commissionReport)
-        _logger.info(f"CommissionReport. {commissionReport}")
+        _logger.info("CommissionReport. %s", commissionReport)
 
     def completedOrder(self, contract: Contract, order: Order, orderState: OrderState):
         super().completedOrder(contract, order, orderState)
         msg = (
-            f"CompletedOrder. PermId: {order.permId}, ParentPermId: {utils.longToStr(order.parentPermId)}, "
-            f"Account: {order.account}, Symbol: {contract.symbol}, SecType: {contract.secType}, Exchange: {contract.exchange}, "
-            f"Action: {order.action}, OrderType: {order.orderType}, TotalQty: {order.totalQuantity}, "
-            f"CashQty: {order.cashQty}, FilledQty: {order.filledQuantity}, LmtPrice: {order.lmtPrice}, "
-            f"AuxPrice: {order.auxPrice}, Status: {orderState.status}, Completed time: {orderState.completedTime}, "
+            f"CompletedOrder. PermId: {order.permId}, "
+            f"ParentPermId: {utils.longToStr(order.parentPermId)}, "
+            f"Account: {order.account}, Symbol: {contract.symbol}, "
+            f"SecType: {contract.secType}, Exchange: {contract.exchange}, "
+            f"Action: {order.action}, OrderType: {order.orderType}, "
+            f"TotalQty: {order.totalQuantity}, "
+            f"CashQty: {order.cashQty}, FilledQty: {order.filledQuantity}, "
+            f"LmtPrice: {order.lmtPrice}, "
+            f"AuxPrice: {order.auxPrice}, Status: {orderState.status}, "
+            f"Completed time: {orderState.completedTime}, "
             f"Completed Status: {orderState.completedStatus}"
         )
         _logger.info(msg)
@@ -1503,5 +1709,3 @@ class IBApi(EWrapper, EClient):
     def completedOrdersEnd(self):
         super().completedOrdersEnd()
         _logger.info("CompletedOrdersEnd")
-
-    # ---------------------------------- End EWrapper functions ---------------------------------------------- #

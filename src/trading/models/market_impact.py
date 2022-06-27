@@ -20,7 +20,8 @@ class MarketImpact:
         Where we will implement the computation of an estimate of the market impact.
         """
 
-    def get(self, ticker=None, ric=None):
+    @staticmethod
+    def get(ticker=None, ric=None):
         """
         Get the market impact for the instrument.
 

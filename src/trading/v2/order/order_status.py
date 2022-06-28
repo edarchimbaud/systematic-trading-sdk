@@ -1,11 +1,16 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Order status.
+"""
 from enum import Enum
 from functools import total_ordering
 
 
 @total_ordering
 class OrderStatus(Enum):
+    """
+    Order status.
+    """
+
     UNKNOWN = 0
     NEWBORN = 1  # in use
     ACKNOWLEDGED = 2  # in use

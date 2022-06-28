@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from trading.v2.data.tick_event import TickEvent
 from .brokerage_base import BrokerageBase
 from ..data.data_board import DataBoard
+from ..data.tick_event import TickEvent
 from ..event.backtest_event_engine import BacktestEventEngine
 from ..event.live_event_engine import LiveEventEngine
 from ..order.fill_event import FillEvent

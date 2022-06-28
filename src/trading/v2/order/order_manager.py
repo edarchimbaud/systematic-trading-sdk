@@ -1,10 +1,14 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-from .order_type import *
-from .order_status import *
-from datetime import datetime
+"""
+Order manager
+"""
 from copy import copy
 import logging
+
+
+from ..data.tick_event import TickEvent
+from .order_status import OrderStatus
+from ..order.fill_event import FillEvent
+from ..order.order_event import OrderEvent
 
 _logger = logging.getLogger(__name__)
 
@@ -22,24 +26,35 @@ class OrderManager(object):
         self.canceled_order_set = set()  # order_id of canceled orders for convenience
 
     def reset(self):
+        """
+        Reset all the orders and fills.
+        """
         self.order_dict.clear()
         self.fill_dict.clear()
         self.standing_order_set.clear()
         self.canceled_order_set.clear()
 
-    def on_tick(self, tick_event):
-        """ """
+    def on_tick(self, tick_event: TickEvent):
+        """
+        On tick event, update the order status.
+        """
         pass
 
-    def on_order_status(self, order_event):
+    def on_order_status(self, order_event: OrderEvent):
         """
-        on order status change from broker
-        including canceled status
+        On order status change from broker including canceled status.
+
+        Parameters
+        ----------
+            order_event : OrderEvent
+                Order event from broker.
         """
         # there should be no negative order id if order is directly placed without queue.
         if order_event.order_id < 0:
             _logger.error(
-                f"{self.name} OrderManager received negative orderid {order_event.order_id}"
+                "%s OrderManager received negative orderid %s",
+                self.name,
+                order_event.order_id,
             )
 
         if order_event.order_id in self.order_dict:
@@ -47,7 +62,7 @@ class OrderManager(object):
                 order_event.full_symbol
                 != self.order_dict[order_event.order_id].full_symbol
             ):
-                _logger.error(f"{self.name} OrderManager Error: orders dont match")
+                _logger.error("%s OrderManager Error: orders dont match", self.name)
                 return False
             # only change status when it is logical
             elif (
@@ -82,27 +97,35 @@ class OrderManager(object):
                     self.standing_order_set.remove(order_event.order_id)
             return True
 
-    def on_cancel(self, oid):
+    def on_cancel(self, oid: int):
         """
         This proactively set order status to PENDING_CANCEL
-        :param o:
-        :return:
+
+        Parameters
+        ----------
+            oid : int
+                order id
         """
         # Cancel will be handled in order_status
         # self.canceled_order_set.add(oid)
         # if oid in self.standing_order_set:
         #     self.standing_order_set.remove(oid)
-        if oid in self.order_dict.keys():
+        if oid in self.order_dict:
             self.order_dict[oid].order_status = OrderStatus.PENDING_CANCEL
         else:
-            _logger.error(f"{self.name} OrderManager cancel order is not registered")
+            _logger.error("%s OrderManager cancel order is not registered", self.name)
 
-    def on_fill(self, fill_event):
+    def on_fill(self, fill_event: FillEvent):
         """
-        on receive fill_event from broker
+        On receive fill_event from broker.
+
+        Parameters
+        ----------
+            fill_event : FillEvent
+                Fill event from broker.
         """
-        if fill_event.fill_id in self.fill_dict.keys():
-            _logger.error(f"{self.name} fill exists")
+        if fill_event.fill_id in self.fill_dict:
+            _logger.error("%s fill exists", self.name)
         else:
             self.fill_dict[fill_event.fill_id] = fill_event
 
@@ -132,25 +155,47 @@ class OrderManager(object):
                     ].order_status = OrderStatus.PARTIALLY_FILLED
             else:
                 _logger.error(
-                    f"{self.name} Fill event {fill_event.fill_id} has no matching order {fill_event.order_id}"
+                    "%s Fill event %s has no matching order %s",
+                    self.name,
+                    fill_event.fill_id,
+                    fill_event.order_id,
                 )
 
-    def retrieve_order(self, order_id):
+    def retrieve_order(self, order_id: int):
+        """
+        Retrieve order by order_id.
+
+        Parameters
+        ----------
+            order_id : int
+                Order id.
+        """
         try:
             return self.order_dict[order_id]
-        except:
+        except:  # pylint: disable=bare-except
             return None
 
-    def retrieve_fill(self, fill_id):
+    def retrieve_fill(self, fill_id: int):
+        """
+        Retrieve fill by fill_id.
+
+        Parameters
+        ----------
+            fill_id : int
+                Fill id.
+        """
         try:
             return self.fill_dict[fill_id]
-        except:
+        except:  # pylint: disable=bare-except
             return None
 
     def retrieve_standing_orders(self):
+        """
+        Retrieve standing orders.
+        """
         oids = []
         for oid in self.standing_order_set:
-            if oid in self.order_dict.keys():
+            if oid in self.order_dict:
                 if (
                     self.order_dict[oid].order_status < OrderStatus.FILLED
                 ):  # has standing order

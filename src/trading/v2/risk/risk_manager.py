@@ -1,23 +1,42 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-from .risk_manager_base import RiskManagerBase
+"""
+Risk manager.
+"""
 import logging
+
+from ..order.order_event import OrderEvent
+from .risk_manager_base import RiskManagerBase
+from ..strategy.strategy_manager import StrategyManager
 
 _logger = logging.getLogger(__name__)
 
 
 class PassThroughRiskManager(RiskManagerBase):
-    def order_in_compliance(self, o, strategy_manager=None):
+    """
+    Pass through risk manager.
+    """
+
+    def order_in_compliance(
+        self, o: OrderEvent, strategy_manager: StrategyManager = None
+    ):
         """
-        Pass through the order without constraints
-        :param original_order:
-        :param env: e.g. strategy_manager that stores order info vs config info
-        :return:
+        Pass through the order without constraints.
+
+        Parameters
+        ----------
+            o : Order
+                Order.
+
+            strategy_manager : StrategyManager
+                Strategy manager.
         """
         return True
 
 
 class RiskManager(RiskManagerBase):
+    """
+    Risk manager.
+    """
+
     def order_in_compliance(self, o, strategy_manager=None):
         """
         :param original_order:

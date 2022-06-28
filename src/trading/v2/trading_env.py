@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Gym trading env
 Unlike live engine or backtest engine, where event loops are driven by live ticks or historical ticks,
@@ -85,12 +83,25 @@ class TradingEnv(gym.Env):
         )
 
     def set_cash(self, cash: np.float32 = 100_000.0):
+        """
+        Set cash amount.
+
+        Parameters
+        ----------
+            cash : float
+                Cash amount.
+        """
         self._inital_cash = cash
         self._cash = self._inital_cash
 
     def set_commission(self, comm: np.float32 = 0.0001):
         """
-        commission plus slippage
+        Commission plus slippage.
+
+        Parameters
+        ----------
+            comm : float
+                Commission rate.
         """
         self._commission_rate = comm
 
@@ -101,6 +112,23 @@ class TradingEnv(gym.Env):
         n_maxsteps: np.int32 = 252,
         n_init_step: np.int32 = 0,
     ):
+        """
+        Set steps.
+
+        Parameters
+        ----------
+            n_lookback : int
+                Lookback window.
+
+            n_warmup : int
+                Warmup window.
+
+            n_maxsteps : int
+                Max steps in one episode.
+
+            n_init_step : int
+                Initial step.
+        """
         self._lookback = n_lookback
         self._warmup = n_warmup
         self._maxsteps = n_maxsteps
@@ -110,11 +138,19 @@ class TradingEnv(gym.Env):
             self._lock_init_step = True
 
     def set_feature_scaling(self, max_nav_scaler: np.float32 = 1.0):
+        """
+        Set feature scaling.
+
+        Parameters
+        ----------
+            max_nav_scaler : float
+                Max NAV scaler.
+        """
         self._max_nav_scaler = max_nav_scaler
 
     def _get_observation(self):
         """
-        return an array of size self._lookback x features.
+        Return an array of size self._lookback x features.
         Each column is a feature; last feature is NAV.
         Row is in time ascending order. That is, last row is self._current_step.
         """
@@ -134,7 +170,7 @@ class TradingEnv(gym.Env):
 
     def step(self, action):
         """
-        move one step to the next timestamp, accordingly to action
+        Move one step to the next timestamp, accordingly to action
         assume hft condition: execution at today 15:59:59, after observing today's ohl and (almost) close.
         execution immediately using market or market on close, no slippage.
         e.g., assume on 12/31/2019, 1/2/2020, and 1/3/2020 prices are $95, $100, $110. respectively.
@@ -214,7 +250,7 @@ class TradingEnv(gym.Env):
 
     def reset(self):
         """
-        random start time
+        Random start time.
         """
         self._cash = self._inital_cash
         self._df_positions = self._df_exch * 0.0
@@ -234,6 +270,14 @@ class TradingEnv(gym.Env):
         return self._get_observation()
 
     def render(self, mode="human"):
+        """
+        Render the environment to the screen.
+
+        Parameters
+        ----------
+            mode : str
+                The mode to render the environment in.
+        """
         # plt.rcParams.update({'font.size': 6})
         fig, ax = plt.subplots(
             2, 1, gridspec_kw={"height_ratios": [3, 1]}
@@ -278,4 +322,7 @@ class TradingEnv(gym.Env):
         return data
 
     def close(self):
+        """
+        Close the environment.
+        """
         pass

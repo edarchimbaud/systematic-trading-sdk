@@ -1,13 +1,22 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-import re
-from ..position import Position
+"""
+Position manager.
+"""
+from datetime import datetime
 import logging
+
+from .contract_event import ContractEvent
+from ..data.data_board import DataBoard
+from ..order.fill_event import FillEvent
+from .position_event import PositionEvent
 
 _logger = logging.getLogger(__name__)
 
 
 class PositionManager(object):
+    """
+    Position manager.
+    """
+
     def __init__(self, name):
         """ """
         self.name = name
@@ -20,61 +29,121 @@ class PositionManager(object):
         self.positions = {}  # symbol ==> positions
         self.instrument_meta = {}  # sym ==> instrument_meta
 
-    def set_instrument_meta(self, instrument_meta_dict):
+    def set_instrument_meta(self, instrument_meta_dict: dict):
+        """
+        Set instrument meta data.
+
+        Parameters
+        ----------
+            instrument_meta_dict : dict
+                Instrument meta data.
+        """
         self.instrument_meta = instrument_meta_dict
 
-    def set_capital(self, initial_capital):
+    def set_capital(self, initial_capital: float):
+        """
+        Set initial capital.
+
+        Parameters
+        ----------
+            initial_capital : float
+                Initial capital.
+        """
         self.initial_capital = initial_capital
 
     def reset(self):
+        """
+        Reset position manager.
+        """
         self.cash = self.initial_capital
         self.current_total_capital = self.initial_capital
         self.contracts.clear()
         self.positions.clear()
 
     def get_holdings_count(self):
-        n = 0
-        for s, p in self.positions.items():
-            if p.size != 0:
-                n += 1
-        return n
+        """
+        Get number of holdings.
+        """
+        number = 0
+        for position in self.positions.values():
+            if position.size != 0:
+                number += 1
+        return number
 
-    def get_position_size(self, symbol):
-        if symbol in self.positions.keys():
+    def get_position_size(self, symbol: str):
+        """
+        Get position size.
+
+        Parameters
+        ----------
+            symbol : str
+                Symbol.
+        """
+        if symbol in self.positions:
             return self.positions[symbol].size
         else:
             return 0
 
     def get_cash(self):
+        """
+        Get cash.
+        """
         return self.cash
 
     def get_total_pnl(self):
+        """
+        Get total pnl.
+        """
         total_pnl = 0
         for s, pos in self.positions.items():
             cp, op = pos.get_current_pnl()
             total_pnl = total_pnl + cp + op
         return total_pnl
 
-    def on_contract(self, contract):
+    def on_contract(self, contract: ContractEvent):
+        """
+        On contract event.
+
+        Parameters
+        ----------
+            contract : ContractEvent
+                Contract event.
+        """
         if contract.full_symbol not in self.contracts:
             self.contracts[contract.full_symbol] = contract
             _logger.info(
-                f"{self.name} Contract {contract.full_symbol} information received. "
+                "%s Contract %s information received. ",
+                self.name,
+                contract.full_symbol,
             )
         else:
             _logger.info(
-                f"{self.name} Contract {contract.full_symbol} information already exists "
+                "%s Contract %s information already exists ",
+                self.name,
+                contract.full_symbol,
             )
 
-    def on_position(self, pos_event):
-        """respond to updatePortfolio; global position_manager only"""
+    def on_position(self, pos_event: PositionEvent):
+        """
+        Respond to updatePortfolio; global position_manager only.
+
+        Parameters
+        ----------
+            pos_event : PositionEvent
+                Position event.
+        """
         pos = pos_event.to_position()
         self.positions[pos.full_symbol] = pos
 
-    def on_fill(self, fill_event):
+    def on_fill(self, fill_event: FillEvent):
         """
         This works only on stocks.
         TODO: consider margin
+
+        Parameters
+        ----------
+            fill_event : FillEvent
+                Fill event.
         """
         # sell will get cash back
         if fill_event.full_symbol in self.instrument_meta.keys():
@@ -94,7 +163,13 @@ class PositionManager(object):
         else:
             self.positions[fill_event.full_symbol] = fill_event.to_position(multiplier)
 
-    def mark_to_market(self, time_stamp, symbol, last_price, data_board):
+    def mark_to_market(
+        self,
+        time_stamp: datetime,
+        symbol: str,
+        last_price: float,
+        data_board: DataBoard,
+    ):
         """
         from previous timestamp to current timestamp. Pnl from holdings
         """

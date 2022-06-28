@@ -1,6 +1,6 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-from pandas import Timestamp
+"""
+Fill event.
+"""
 from ..event.event import *
 from ..position.position import Position
 
@@ -27,10 +27,15 @@ class FillEvent(Event):
         self.source = -1
         self.api = ""
 
-    def to_position(self, multiplier=1):
+    def to_position(self, multiplier: int = 1):
         """
         if there is no existing position for this symbol, this fill will create a new position
         (otherwise it will be adjusted to exisitng position)
+
+        Parameters
+        ----------
+            multiplier : int
+                Multiplier for position size.
         """
         if self.fill_size > 0:
             average_price_including_commission = (
@@ -48,14 +53,7 @@ class FillEvent(Event):
 
     def __str__(self):
         return (
-            "Time: %s, Source: %s, Oid: %s, Ticker: %s, Price: %s, Size %s Comm %s"
-            % (
-                self.fill_time,
-                str(self.source),
-                str(self.order_id),
-                self.full_symbol,
-                str(self.fill_price),
-                str(self.fill_size),
-                str(self.commission),
-            )
+            f"Time: {self.fill_time}, Source: {self.source}, "
+            f"Oid: {self.order_id}, Ticker: {self.full_symbol}, "
+            f"Price: {self.fill_price}, Size {self.fill_size} Comm {self.commission}"
         )

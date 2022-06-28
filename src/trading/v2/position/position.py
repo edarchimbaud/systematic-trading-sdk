@@ -1,14 +1,41 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Position.
+"""
 import logging
+
+from ..order.fill_event import FillEvent
 
 _logger = logging.getLogger(__name__)
 
 
 class Position(object):
-    def __init__(self, full_symbol, average_price, size, realized_pnl=0):
+    """
+    Position.
+    """
+
+    def __init__(
+        self,
+        full_symbol: str,
+        average_price: float,
+        size: int,
+        realized_pnl: float = 0,  # pylint: disable=unused-argument
+    ):
         """
-        Position includes zero/closed security
+        Position includes zero/closed security.
+
+        Parameters
+        ----------
+            full_symbol : str
+                Full symbol of security.
+
+            average_price : float
+                Average price of security.
+
+            size : int
+                Size of security.
+
+            realized_pnl : float
+                Realized pnl of security.
         """
         ## TODO: add cumulative_commission, long_trades, short_trades, round_trip etc
         self.full_symbol = full_symbol
@@ -20,24 +47,48 @@ class Position(object):
         self.account = ""
 
     def get_current_pnl(self):
+        """
+        Get current pnl of position.
+        """
         return self.realized_pnl, self.unrealized_pnl
 
-    def mark_to_market(self, last_price, multiplier):
+    def mark_to_market(self, last_price: float, multiplier: float):
         """
-        given new market price, update the position
+        Given new market price, update the position.
+
+        Parameters
+        ----------
+            last_price : float
+                Last price of security.
+
+            multiplier : float
+                Multiplier of security.
         """
         # if long or size > 0, pnl is positive if last_price > average_price
         # else if short or size < 0, pnl is positive if last_price < average_price
         self.unrealized_pnl = (last_price - self.average_price) * self.size * multiplier
 
-    def on_fill(self, fill_event, multiplier, parent_name):
+    def on_fill(self, fill_event: FillEvent, multiplier: float, parent_name: str):
         """
-        adjust average_price and size according to new fill/trade/transaction
+        Adjust average_price and size according to new fill/trade/transaction.
+
+        Parameters
+        ----------
+            fill_event : FillEvent
+                Fill event.
+
+            multiplier : float
+                Multiplier of security.
+
+            parent_name : str
+                Parent name of security.
         """
         if self.full_symbol != fill_event.full_symbol:
             _logger.error(
-                "%s Position symbol %s and fill event symbol %s do not match. "
-                % (parent_name, self.full_symbol, fill_event.full_symbol)
+                "%s Position symbol %s and fill event symbol %s do not match. ",
+                parent_name,
+                self.full_symbol,
+                fill_event.full_symbol,
             )
 
         if self.size > 0:  # existing long
@@ -85,5 +136,12 @@ class Position(object):
         self.size += fill_event.fill_size
 
         _logger.info(
-            f"{parent_name} Position Fill: sym {self.full_symbol}, avg price {self.average_price}, fill price {fill_event.fill_price}, fill size {fill_event.fill_size}, after size {self.size}, close pnl {self.realized_pnl}"
+            "%s Position Fill: sym %s, avg price %s, fill price %s, fill size %s, after size %s, close pnl %s",
+            parent_name,
+            self.full_symbol,
+            self.average_price,
+            fill_event.fill_price,
+            fill_event.fill_size,
+            self.size,
+            self.realized_pnl,
         )

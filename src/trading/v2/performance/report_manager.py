@@ -1,7 +1,12 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Report manager.
+"""
 
 
 class ReportManager(object):
+    """
+    Report manager.
+    """
+
     def __init__(self):
         pass

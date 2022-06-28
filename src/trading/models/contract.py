@@ -195,7 +195,7 @@ class Contract:
             stem_wo_month = stem_wo_year[:-1]
             if stem_wo_month in ["SIRT"]:
                 return "SI"
-            for ticker in get_futures().keys():
+            for ticker in get_futures():
                 if stem_wo_month == get_futures()[ticker].get("Stem", {}).get(
                     "Reuters"
                 ):

@@ -1,8 +1,15 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Performance manager.
+"""
+from datetime import datetime
+import logging
+
 import numpy as np
 import pandas as pd
-import logging
+from ..data.data_board import DataBoard
+from ..order.fill_event import FillEvent
+from ..position.position_manager import PositionManager
+
 
 _logger = logging.getLogger(__name__)
 
@@ -22,7 +29,18 @@ class PerformanceManager(object):
         self._df_positions = None
         self._df_trades = None
 
-    def add_watch(self, data_key, data):
+    def add_watch(self, data_key: str, data: pd.DataFrame):
+        """
+        Add a watch to the performance manager.
+
+        Parameters
+        ----------
+            data_key: str
+                The key of the data to be watched.
+
+            data: pd.DataFrame
+                The data to be watched.
+        """
         if "Close" in data.columns:  # OHLCV
             self._symbols.append(data_key)
         else:  # CLZ20, CLZ21
@@ -30,6 +48,9 @@ class PerformanceManager(object):
 
     #  or each sid
     def reset(self):
+        """
+        Reset the performance manager.
+        """
         self._realized_pnl = 0.0
         self._unrealized_pnl = 0.0
 
@@ -49,7 +70,15 @@ class PerformanceManager(object):
         )
         # self._df_trades.amount = self._df_trades.amount.astype(int)     # pyfolio transactions
 
-    def on_fill(self, fill_event):
+    def on_fill(self, fill_event: FillEvent):
+        """
+        On a fill, update the performance manager.
+
+        Parameters
+        ----------
+            fill_event: FillEvent
+                The fill event.
+        """
         # self._df_trades.loc[fill_event.timestamp] = [fill_event.fill_size, fill_event.fill_price, fill_event.full_symbol]
         self._df_trades = self._df_trades.append(
             pd.DataFrame(
@@ -62,9 +91,25 @@ class PerformanceManager(object):
             )
         )
 
-    def update_performance(self, current_time, position_manager, data_board):
+    def update_performance(
+        self,
+        current_time: datetime,
+        position_manager: PositionManager,
+        data_board: DataBoard,
+    ):
         """
-        update previous time/date
+        Update previous time/date.
+
+        Parameters
+        ----------
+            current_time: datetime
+                The current time.
+            
+            position_manager: PositionManager
+                The position manager.
+            
+            data_board: DataBoard
+                The data board.
         """
         if self._equity.empty:  # no previous day
             self._equity[current_time] = 0.0

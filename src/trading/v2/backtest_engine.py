@@ -78,7 +78,7 @@ class BacktestEngine(object):
         :param watch: track position or not
         :return:
         """
-        if data_key not in self.instrument_meta.keys():
+        if data_key not in self.instrument_meta:
             keys = data_key.split(" ")
             # find first digit position
             for i, c in enumerate(keys[0]):
@@ -86,7 +86,7 @@ class BacktestEngine(object):
                     break
                 if i < len(keys[0]):
                     sym_root = keys[0][: i - 1]
-                    if sym_root in self.instrument_meta.keys():
+                    if sym_root in self.instrument_meta:
                         self.instrument_meta[data_key] = self.instrument_meta[sym_root]
 
         self._data_feed.set_data_source(data_source)  # get iter(datetimeindex)

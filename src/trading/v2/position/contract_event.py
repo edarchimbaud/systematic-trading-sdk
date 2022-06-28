@@ -1,12 +1,13 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Contract event.
+"""
 
 from ..event.event import *
 
 
 class ContractEvent(Event):
     """
-    also serve as contract
+    Also serve as contract
     """
 
     def __init__(self):

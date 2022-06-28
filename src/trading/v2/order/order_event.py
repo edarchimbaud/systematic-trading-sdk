@@ -1,10 +1,10 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
+"""
+Order event.
+"""
 from .order_status import OrderStatus
 from .order_flag import OrderFlag
 from .order_type import OrderType
-from ..event.event import *
+from ..event.event import Event, EventType
 
 
 class OrderEvent(Event):
@@ -14,7 +14,7 @@ class OrderEvent(Event):
 
     def __init__(self):
         """
-        order and order status
+        Order and order status.
         """
         self.event_type = EventType.ORDER
         self.order_id = -1
@@ -35,11 +35,8 @@ class OrderEvent(Event):
         self.timestamp = ""
 
     def __str__(self):
-        return "Time: %s, Source: %s, Type: %s, LMT: %s, STP %s Size %s" % (
-            self.timestamp,
-            str(self.source),
-            str(self.order_type),
-            str(self.limit_price),
-            str(self.stop_price),
-            str(self.order_size),
+        return (
+            f"Time: {self.timestamp}, Source: {self.source}, "
+            f"Type: {self.order_type}, LMT: {self.limit_price}, "
+            f"STP {self.stop_price} Size {self.order_size}"
         )

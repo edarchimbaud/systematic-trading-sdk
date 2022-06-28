@@ -95,9 +95,17 @@ class LiveEventEngine(object):
         if handler not in handler_list:
             handler_list.append(handler)
 
-    def unregister_handler(self, type_, handler):
+    def unregister_handler(self, type_: str, handler):
         """
-        unregister handler/subscriber
+        Unregister handler/subscriber.
+
+        Parameters
+        ----------
+            type_ : str
+                Event type.
+
+            handler : function
+                Handler function.
         """
         handler_list = self._handlers[type_]
 

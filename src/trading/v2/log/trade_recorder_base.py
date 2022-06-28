@@ -1,18 +1,26 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Transaction recorder
+"""
 from abc import ABCMeta, abstractmethod
+
+from ..event.event import Event
 
 
 class AbstractTradeRecorder(object):
     """
-    transaction recorder
+    Transaction recorder
     """
 
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def record_trade(self, fill):
+    def record_trade(self, fill: Event):
         """
-        logs fill event
+        Logs fill event
+
+        Parameters
+        ----------
+            fill : Event
+                Fill event
         """
         raise NotImplementedError("Should implement record_trade()")

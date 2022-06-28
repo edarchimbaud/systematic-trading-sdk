@@ -4,6 +4,7 @@ Backtest event engine.
 from collections import defaultdict
 import logging
 
+from .event import Event
 from queue import Empty, Queue
 
 
@@ -31,10 +32,15 @@ class BacktestEventEngine(object):
         # event handlers list, dict: specific event key --> handler value
         self._handlers = defaultdict(list)
 
-    def run(self, n_steps=-1):
+    def run(self, n_steps: int = -1):
         """
-        run backtest,
+        Run backtest,
         if n_steps = -1, run to the end; else run n_steps
+
+        Parameters
+        ----------
+            n_steps : int
+                Number of steps to run
         """
         _logger.info("Running Backtest...")
         nstep = 0
@@ -61,15 +67,28 @@ class BacktestEventEngine(object):
                 except Exception as exception:  # pylint: disable=broad-except
                     logging.error("Error %s", exception.args[0])
 
-    def put(self, event):
+    def put(self, event: Event):
         """
-        put event in the queue; call from outside
+        Put event in the queue; call from outside.
+
+        Parameters
+        ----------
+            event : Event
+                Event to put in the queue
         """
         self._queue.put(event)
 
-    def register_handler(self, type_, handler):
+    def register_handler(self, type_: str, handler):
         """
-        register handler/subscriber
+        Register handler/subscriber
+
+        Parameters
+        ----------
+            type_ : str
+                Event type
+
+            handler : function
+                Handler function
         """
         handler_list = self._handlers[type_]
         if handler not in handler_list:
@@ -77,7 +96,15 @@ class BacktestEventEngine(object):
 
     def unregister_handler(self, type_, handler):
         """
-        unregister handler/subscriber
+        Unregister handler/subscriber.
+
+        Parameters
+        ----------
+            type_ : str
+                Event type
+
+            handler : function
+                Handler function
         """
         handler_list = self._handlers[type_]
         if handler in handler_list:

@@ -1,7 +1,12 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Margin manager.
+"""
 
 
 class MarginManager(object):
+    """
+    Margin manager.
+    """
+
     def __init__(self):
         pass

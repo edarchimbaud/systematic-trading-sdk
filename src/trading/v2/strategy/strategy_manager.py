@@ -1,35 +1,63 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Strategy manager.
+"""
 import logging
 from datetime import datetime, timedelta
-from ..order.order_status import OrderStatus
+from trading.v2.order.fill_event import FillEvent
+
+from trading.v2.position.position import Position
+
+from ..brokerage.backtest_brokerage import BacktestBrokerage
+from ..data.data_board import DataBoard
 from ..order.order_event import OrderEvent
+from ..order.order_manager import OrderManager
+from ..order.order_status import OrderStatus
+from ..position.position_manager import PositionManager
+from ..risk.risk_manager import RiskManager
 
 _logger = logging.getLogger(__name__)
 
 
 class StrategyManager(object):
+    """
+    Strategy manager will check with risk manager before send out orders
+    """
+
     def __init__(
         self,
-        config,
-        broker,
-        order_manager,
-        position_manager,
-        risk_manager,
-        data_board,
-        instrument_meta,
+        config: dict,
+        broker: BacktestBrokerage,
+        order_manager: OrderManager,
+        position_manager: PositionManager,
+        risk_manager: RiskManager,
+        data_board: DataBoard,
+        instrument_meta: dict,
     ):
         """
-        current design: oversees all strategies/traders, check with risk managers before send out orders
-        let strategy manager to track strategy position for each strategy, with the help from order manager
+        Current design: oversees all strategies/traders,
+        check with risk managers before send out orders
+        let strategy manager to track strategy position for each strategy,
+        with the help from order manager.
 
-        :param config:
-        :param strat_dict:     strat name ==> stract
-        :param broker: to place order directly without message queue
-        :param order_manager:  this order manager support total/global orders
-        :param position_manager:    this position manager help track total/global positions
-        :param risk_manager: chck order witth
-        :param data_board: for strategy
+        Parameters
+        ----------
+            config: dict
+                Config file.
+
+            broker: BacktestBrokerage
+                Brokerage instance.
+
+            order_manager: OrderManager
+                Order manager instance.
+
+            position_manager: PositionManager
+                Position manager instance.
+
+            risk_manager: RiskManager
+                Risk manager instance.
+
+            data_board: DataBoard
+                Data board instance.
         """
         self._config = config
         self._broker = broker
@@ -45,14 +73,22 @@ class StrategyManager(object):
             -1: [],
         }  # sid ==> oid list; 0: manual; -1: unknown source
 
-    def load_strategy(self, strat_dict):
-        sid = 1  # 0 is mannual discretionary trade, or not found
+    def load_strategy(self, strat_dict: dict):
+        """
+        Load strategy from dict.
+
+        Parameters
+        ----------
+            strat_dict: dict
+                Strategy dict.
+        """
+        sid = 1  # 0 is manual discretionary trade, or not found
         # similar to backtest; strategy sets capital, params, and symbols
         for k, v in strat_dict.items():
             v.id = sid
             sid += 1
             v.name = k
-            if v.name in self._config["strategy"].keys():
+            if v.name in self._config["strategy"]:
                 v.active = self._config["strategy"][v.name]["active"]
                 v.set_capital(self._config["strategy"][v.name]["capital"])  # float
                 v.set_params(self._config["strategy"][v.name]["params"])  # dict
@@ -87,12 +123,13 @@ class StrategyManager(object):
             for sym in v.symbols:
                 if sym not in self._instrument_meta.keys():
                     # find first digit position
-                    ss = sym.split(" ")
-                    for i, c in enumerate(ss[0]):
-                        if c.isdigit():
+                    sym_split = sym.split(" ")
+                    index = 0
+                    for index, character in enumerate(sym_split[0]):
+                        if character.isdigit():
                             break
-                    if i < len(ss[0]):
-                        sym_root = ss[0][: i - 1]
+                    if index < len(sym_split[0]):
+                        sym_root = sym_split[0][: index - 1]
                         if sym_root in self._instrument_meta.keys():
                             self._instrument_meta[sym] = self._instrument_meta[
                                 sym_root
@@ -105,36 +142,105 @@ class StrategyManager(object):
                 if sym in self._broker.market_data_subscription_reverse_dict.keys():
                     continue
                 else:
-                    _logger.info(f"add {sym}")
+                    _logger.info("add %s", sym)
                     self._broker.market_data_subscription_reverse_dict[sym] = -1
 
             v.on_init(self, self._data_board, self._instrument_meta)
 
-    def start_strategy(self, sid):
+    @property
+    def config(self):
+        """
+        Config file.
+        """
+        return self._config
+
+    @property
+    def order_manager(self):
+        """
+        Order manager instance.
+        """
+        return self._order_manager
+
+    @property
+    def position_manager(self):
+        """
+        Position manager instance.
+        """
+        return self._position_manager
+
+    @property
+    def strategy_dict(self):
+        """
+        Strategy dict.
+        """
+        return self._strategy_dict
+
+    def start_strategy(self, sid: int):
+        """
+        Start strategy.
+
+        Parameters
+        ----------
+            sid: int
+                Strategy id.
+        """
         self._strategy_dict[sid].active = True
 
-    def stop_strategy(self, sid):
+    def stop_strategy(self, sid: int):
+        """
+        Stop strategy.
+
+        Parameters
+        ----------
+            sid: int
+                Strategy id.
+        """
         self._strategy_dict[sid].active = False
 
-    def pause_strategy(self, sid):
+    def pause_strategy(self, sid: int):
+        """
+        Pause strategy.
+
+        Parameters
+        ----------
+            sid: int
+                Strategy id.
+        """
         self._strategy_dict[sid].active = False
 
     def start_all(self):
-        for k, v in self._strategy_dict.items():
-            v.active = True
+        """
+        Start all strategies.
+        """
+        for value in self._strategy_dict.values():
+            value.active = True
 
     def stop_all(self):
-        for k, v in self._strategy_dict.items():
-            v.active = False
+        """
+        Stop all strategies.
+        """
+        for value in self._strategy_dict.values():
+            value.active = False
 
-    def place_order(self, o, check_risk=True):
-        # currently it puts order directly with broker; e.g. by simplying calling ib.placeOrder method
-        # Because order is placed directly; all subsequent on_order messages are order status updates
-        # TODO, use an outbound queue to send orders
-        # 1. check with risk manager
+    def place_order(self, order: OrderEvent, check_risk: bool = True):
+        """
+        Currently it puts order directly with broker; e.g. by simplying calling ib.placeOrder method
+        Because order is placed directly; all subsequent on_order messages are order status updates
+        TODO, use an outbound queue to send orders
+        1. check with risk manager
+
+        Parameters
+        ----------
+            order: OrderEvent
+                Order event.
+
+            check_risk: bool (default: True)
+                Check risk.
+        """
+
         order_check = True
         if check_risk:
-            order_check = self._risk_manager.order_in_compliance(o, self)
+            order_check = self._risk_manager.order_in_compliance(order, self)
 
         # 2. if green light
         if not order_check:
@@ -143,72 +249,90 @@ class StrategyManager(object):
         # 2.a record
         oid = self._broker.orderid
         self._broker.orderid += 1
-        o.order_id = oid
-        o.order_status = OrderStatus.NEWBORN
-        self._sid_oid_dict[o.source].append(oid)
+        order.order_id = oid
+        order.order_status = OrderStatus.NEWBORN
+        self._sid_oid_dict[order.source].append(oid)
         # feedback newborn status
-        self._order_manager.on_order_status(o)
-        if (
-            o.source in self._strategy_dict.keys()
-        ):  # in case it is not placed by strategy
-            self._strategy_dict[o.source].on_order_status(o)
+        self._order_manager.on_order_status(order)
+        if order.source in self._strategy_dict:  # in case it is not placed by strategy
+            self._strategy_dict[order.source].on_order_status(order)
 
         # 2.b place order
-        self._broker.place_order(o)
+        self._broker.place_order(order)
 
-    def cancel_order(self, oid):
+    def cancel_order(self, oid: int):
+        """
+        Cancel order.
+
+        Parameters
+        ----------
+            oid: int
+                Order id.
+        """
         self._order_manager.on_cancel(oid)
         # self._strategy_dict[sid].on_cancel(oid)  # This is moved to strategy_base
         self._broker.cancel_order(oid)
 
-    def cancel_strategy(self, sid):
+    def cancel_strategy(self, sid: int):
         """
-        call strategy cancel to take care of strategy order_manager
+        Call strategy cancel to take care of strategy order_manager.
+
+        Parameters
+        ----------
+            sid: int
+                Strategy id.
         """
-        if sid not in self._strategy_dict.keys():
-            _logger.error(f"Cancel strategy can not locate strategy id {sid}")
+        if sid not in self._strategy_dict:
+            _logger.error("Cancel strategy can not locate strategy id %s", sid)
         else:
             self._strategy_dict[sid].cancel_all()
 
     def cancel_all(self):
-        for sid, s in self._strategy_dict.items():
-            s.cancel_all()
-
-    def flat_strategy(self, sid):
         """
-        flat with MARKET order (default)
+        Cancel all orders.
+        """
+        for strategy in self._strategy_dict.values():
+            strategy.cancel_all()
+
+    def flat_strategy(self, sid: int):
+        """
+        Flat with MARKET order (default)
         Assume each strategy track its own positions
         TODO: should turn off strategy?
-        """
-        if sid not in self._strategy_dict.keys():
-            _logger.error(f"Flat strategy can not locate strategy id {sid}")
 
-        for sym, pos in self._strategy_dict[sid]._position_manager.positions.items():
+        Parameters
+        ----------
+            sid: int
+                Strategy id.
+        """
+        if sid not in self._strategy_dict:
+            _logger.error("Flat strategy can not locate strategy id %s", sid)
+
+        for sym, pos in self._strategy_dict[sid].position_manager.positions.items():
             if pos.size != 0:
-                o = OrderEvent()
-                o.full_symbol = sym
-                o.order_size = -pos.size
-                o.source = 0  # mannual flat
-                o.create_time = datetime.now().strftime("%H:%M:%S.%f")
+                order = OrderEvent()
+                order.full_symbol = sym
+                order.order_size = -pos.size
+                order.source = 0  # mannual flat
+                order.create_time = datetime.now().strftime("%H:%M:%S.%f")
                 self.place_order(
-                    o, check_risk=False
+                    order, check_risk=False
                 )  # flat strategy doesnot cehck risk
 
     def flat_all(self):
         """
-        flat all according to position_manager
+        Flat all according to position_manager
         TODO: should turn off all strategies?
-        :return:
         """
         for sym, pos in self._position_manager.positions.items():
             if pos.size != 0:
-                o = OrderEvent()
-                o.full_symbol = sym
-                o.order_size = -pos.size
-                o.source = 0
-                o.create_time = datetime.now().strftime("%H:%M:%S.%f")
+                order = OrderEvent()
+                order.full_symbol = sym
+                order.order_size = -pos.size
+                order.source = 0
+                order.create_time = datetime.now().strftime("%H:%M:%S.%f")
                 self.place_order(
-                    o, check_risk=False
+                    order, check_risk=False
                 )  # flat strategy doesnot cehck risk
 
     def on_tick(self, k):
@@ -218,50 +342,72 @@ class StrategyManager(object):
                 if self._strategy_dict[sid].active:
                     self._strategy_dict[sid].on_tick(k)
 
-    def on_position(self, pos):
+    def on_position(self, pos: Position):
         """
-        get initial position
-        read from config file instead
-        :param pos:
-        :return:
+        Get initial position.
+        Read from config file instead.
+
+        Parameters
+        ----------
+            pos: Position
+                Position.
         """
         pass
 
-    def on_order_status(self, order_event):
+    def on_order_status(self, order_event: OrderEvent):
         """
+        On order status.
         TODO: check if source is working
-        :param order_event:
-        :return:
+
+        Parameters
+        ----------
+            order_event: OrderEvent
+                Order event.
         """
         sid = order_event.source
-        if sid in self._strategy_dict.keys():
+        if sid in self._strategy_dict:
             self._strategy_dict[sid].on_order_status(order_event)
         else:
             _logger.info(
-                f"strategy manager doesnt hold the oid {order_event.order_id} to set status {order_event.order_status}, possibly from outside of the system"
+                "strategy manager doesnt hold the oid %s to set status %s, possibly from outside of the system",
+                order_event.order_id,
+                order_event.order_status,
             )
 
-    def on_cancel(self, order_event):
+    def on_cancel(self, order_event: OrderEvent):
         """
+        On cancel.
         TODO no need for this
+
+        Parameters
+        ----------
+            order_event: OrderEvent
+                Order event.
         """
         sid = order_event.source
-        if sid in self._strategy_dict.keys():
+        if sid in self._strategy_dict:
             self._strategy_dict[sid].on_order_status(order_event)
         else:
             _logger.info(
-                f"strategy manager doesnt hold the oid {order_event.order_id} to cancel, possibly from outside of the system"
+                "strategy manager doesnt hold the oid %s to cancel, possibly from outside of the system",
+                order_event.order_id,
             )
 
-    def on_fill(self, fill_event):
+    def on_fill(self, fill_event: FillEvent):
         """
-        assign fill ordering to order id ==> strategy id
+        Assign fill ordering to order id ==> strategy id
         TODO: check fill_event source; if not, fix it or use fill_event.order_id
+
+        Parameters
+        ----------
+            fill_event: FillEvent
+                Fill event.
         """
         sid = fill_event.source
-        if sid in self._strategy_dict.keys():
+        if sid in self._strategy_dict:
             self._strategy_dict[sid].on_fill(fill_event)
         else:
             _logger.info(
-                f"strategy manager doesnt hold the oid {fill_event.order_id} to fill, possibly from outside of the system"
+                "strategy manager doesnt hold the oid %s to fill, possibly from outside of the system",
+                fill_event.order_id,
             )

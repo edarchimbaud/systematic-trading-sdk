@@ -3,9 +3,9 @@ Definition of the constants of the module
 """
 from methodtools import lru_cache
 
-from .client import Client, LAST_MODIFIED as last_modified
+from .client import Client, UPDATE_LAST_MODIFIED as update_last_modified
 
-EMPTY = "empty"
+REMOVE_EMPTY = "remove-empty"
 
 FUTURE_TYPE = "Future"
 
@@ -19,7 +19,7 @@ def get_futures():
     return futures
 
 
-LAST_MODIFIED = last_modified
+UPDATE_LAST_MODIFIED = update_last_modified
 
 LETTERS = ["F", "G", "H", "J", "K", "M", "N", "Q", "U", "V", "X", "Z"]
 

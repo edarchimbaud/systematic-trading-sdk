@@ -8,7 +8,7 @@ import os
 import pandas as pd
 import requests
 
-LAST_MODIFIED = "last-modified"
+UPDATE_LAST_MODIFIED = "update-last-modified"
 
 
 class Client:
@@ -20,7 +20,7 @@ class Client:
         self.api_url = "https://" + os.getenv("DATA_DOMAIN")
         self.headers = {"Authorization": os.getenv("DATA_SECRET_KEY")}
 
-    def patch_bucket(self, bucket_name: str, action: str = LAST_MODIFIED):
+    def patch_bucket(self, bucket_name: str, action: str = UPDATE_LAST_MODIFIED):
         """
         Send a patch query to modify a bucket.
 

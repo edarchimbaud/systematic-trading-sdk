@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Gym trading env
 Unlike live engine or backtest engine, where event loops are driven by live ticks or historical ticks,
@@ -114,7 +112,7 @@ class PortfolioEnv(gym.Env):
 
     def set_commission(self, comm: np.float32 = 0.0001):
         """
-        commission plus slippage
+        Commission plus slippage
         """
         self._commission_rate = comm
 
@@ -240,7 +238,7 @@ class PortfolioEnv(gym.Env):
 
     def reset(self):
         """
-        random start time
+        Random start time
         """
         self._cash = self._inital_cash
         self._df_positions = self._df_exch * 0.0

@@ -1,21 +1,24 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-import os
-import numpy as np
-import pandas as pd
-from datetime import datetime, date
+"""
+Backtest engine.
+"""
+from datetime import datetime
 import logging
+
+import pandas as pd
 
 from .event import EventType
 from .event.backtest_event_engine import BacktestEventEngine
 from .data.backtest_data_feed import BacktestDataFeed
 from .data.data_board import DataBoard
+from .data.tick_event import TickEvent
 from .brokerage.backtest_brokerage import BacktestBrokerage
 from .position.position_manager import PositionManager
+from .order.fill_event import FillEvent
+from .order.order_event import OrderEvent
 from .order.order_manager import OrderManager
 from .performance.performance_manager import PerformanceManager
 from .risk.risk_manager import PassThroughRiskManager
-from .strategy import StrategyManager
+from .strategy import StrategyBase, StrategyManager
 
 _logger = logging.getLogger(__name__)
 
@@ -25,7 +28,18 @@ class BacktestEngine(object):
     Event driven backtest engine
     """
 
-    def __init__(self, start_date=None, end_date=None):
+    def __init__(self, start_date: datetime = None, end_date: datetime = None):
+        """
+        Initialize backtest engine
+
+        Parameters
+        ----------
+            start_date: datetime
+                Start date of backtest
+
+            end_date: datetime
+                End date of backtest
+        """
         self._current_time = None
         self._start_date = start_date
         self._end_date = end_date
@@ -58,25 +72,60 @@ class BacktestEngine(object):
         )
         self._strategy = None
 
-    def set_instrument_meta(self, instrument_meta):
+    @property
+    def order_manager(self):
+        """
+        Order manager.
+        """
+        return self._order_manager
+
+    def set_instrument_meta(self, instrument_meta: dict):
+        """
+        Set instrument meta.
+
+        Parameters
+        ----------
+            instrument_meta: dict
+                Instrument meta.
+        """
         self.instrument_meta.update(instrument_meta)
 
-    def set_capital(self, capital):
+    def set_capital(self, capital: float):
         """
-        set capital to the global position manager
+        Set capital to the global position manager.
+
+        Parameters
+        ----------
+            capital: float
+                Capital.
         """
         self._position_manager.set_capital(capital)
 
-    def set_strategy(self, strategy):
+    def set_strategy(self, strategy: StrategyBase):
+        """
+        Set strategy.
+
+        Parameters
+        ----------
+            strategy: StrategyBase
+                Strategy.
+        """
         self._strategy = strategy
 
-    def add_data(self, data_key, data_source, watch=True):
+    def add_data(self, data_key: str, data_source: pd.DataFrame, watch: bool = True):
         """
         Add data for backtest
-        :param data_key: AAPL or CL
-        :param data_source:  dataframe, datetimeindex
-        :param watch: track position or not
-        :return:
+
+        Parameters
+        ----------
+            data_key: str
+                Data key. AAPL or CL.
+
+            data_source: pd.DataFrame
+                Data source.
+
+            watch: bool
+                Whether to track position or not.
         """
         if data_key not in self.instrument_meta:
             keys = data_key.split(" ")
@@ -96,8 +145,8 @@ class BacktestEngine(object):
 
     def _setup(self):
         """
-        Tis needs to be run after strategy and data are loaded
-        because it subscribes to market data
+        This needs to be run after strategy and data are loaded
+        because it subscribes to market data.
         """
         ## 1. data_feed
         self._data_feed.subscribe_market_data()
@@ -119,8 +168,15 @@ class BacktestEngine(object):
         self._events_engine.register_handler(EventType.ORDER, self._order_event_handler)
         self._events_engine.register_handler(EventType.FILL, self._fill_event_handler)
 
-    # ------------------------------------ private functions -----------------------------#
-    def _tick_event_handler(self, tick_event):
+    def _tick_event_handler(self, tick_event: TickEvent):
+        """
+        Tick event handler.
+
+        Parameters
+        ----------
+            tick_event: TickEvent
+                Tick event.
+        """
         self._current_time = tick_event.timestamp
 
         # performance update goes before position and databoard updates because it updates previous day performance
@@ -145,22 +201,34 @@ class BacktestEngine(object):
         # check standing orders, after databoard is updated
         self._backtest_brokerage.on_tick(tick_event)
 
-    def _order_event_handler(self, order_event):
+    def _order_event_handler(self, order_event: OrderEvent):
         """
-        acknowledge order
+        Acknowledge order.
+
+        Parameters
+        ----------
+            order_event: OrderEvent
+                Order event.
         """
         # self._backtest_brokerage.place_order(order_event)
         self._order_manager.on_order_status(order_event)
         self._strategy.on_order_status(order_event)
         pass
 
-    def _fill_event_handler(self, fill_event):
+    def _fill_event_handler(self, fill_event: FillEvent):
+        """
+        Fill event handler.
+
+        Parameters
+        ----------
+            fill_event: FillEvent
+                Fill event.
+        """
         self._order_manager.on_fill(fill_event)
         self._position_manager.on_fill(fill_event)
         self._performance_manager.on_fill(fill_event)
         self._strategy.on_fill(fill_event)
 
-    # -------------------------------- end of private functions -----------------------------#
     def run(self):
         """
         Run backtest
@@ -174,7 +242,7 @@ class BacktestEngine(object):
         )
 
         return (
-            self._performance_manager._equity,
-            self._performance_manager._df_positions,
-            self._performance_manager._df_trades,
+            self._performance_manager.equity,
+            self._performance_manager.df_positions,
+            self._performance_manager.df_trades,
         )

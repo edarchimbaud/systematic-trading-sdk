@@ -21,13 +21,40 @@ class PerformanceManager(object):
     First date will be the first data start date
     """
 
-    def __init__(self, instrument_meta):
+    def __init__(self, instrument_meta: dict):
+        """
+        Parameters
+        ----------
+            instrument_meta: dict
+                The instrument meta.
+        """
         self._symbols = []
         self.instrument_meta = instrument_meta  # sym ==> meta
 
         self._equity = None
         self._df_positions = None
         self._df_trades = None
+
+    @property
+    def df_positions(self):
+        """
+        Get the positions dataframe.
+        """
+        return self._df_positions
+
+    @property
+    def df_trades(self):
+        """
+        Get the trades dataframe.
+        """
+        return self._df_trades
+
+    @property
+    def equity(self):
+        """
+        Return the equity.
+        """
+        return self._equity
 
     def add_watch(self, data_key: str, data: pd.DataFrame):
         """
@@ -104,10 +131,10 @@ class PerformanceManager(object):
         ----------
             current_time: datetime
                 The current time.
-            
+
             position_manager: PositionManager
                 The position manager.
-            
+
             data_board: DataBoard
                 The data board.
         """

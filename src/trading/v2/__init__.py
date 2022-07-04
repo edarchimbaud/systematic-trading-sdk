@@ -14,7 +14,6 @@ from .util import *
 from .backtest_engine import BacktestEngine
 from .trading_env import TradingEnv
 from .portfolio_env import PortfolioEnv
-from .version import VERSION as __version__
 
 # https://docs.python-guide.org/writing/logging/
 import logging

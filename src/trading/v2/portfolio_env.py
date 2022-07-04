@@ -107,12 +107,25 @@ class PortfolioEnv(gym.Env):
         )
 
     def set_cash(self, cash: np.float32 = 100_000.0):
+        """
+        Set initial cash.
+
+        Parameters
+        ----------
+            cash : np.float32
+                Initial cash.
+        """
         self._inital_cash = cash
         self._cash = self._inital_cash
 
     def set_commission(self, comm: np.float32 = 0.0001):
         """
         Commission plus slippage
+
+        Parameters
+        ----------
+            comm : np.float32
+                Commission rate.
         """
         self._commission_rate = comm
 
@@ -240,6 +253,7 @@ class PortfolioEnv(gym.Env):
         """
         Random start time
         """
+        # pylint: disable=arguments-differ
         self._cash = self._inital_cash
         self._df_positions = self._df_exch * 0.0
         self._df_positions["Cash"] = 0.0

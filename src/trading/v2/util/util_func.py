@@ -58,19 +58,19 @@ def read_ohlcv_csv(filepath: str, adjust: bool = True, tz: str = "America/New_Yo
     -------
         pd.DataFrame: OHLCV data.
     """
-    df = pd.read_csv(filepath, header=0, parse_dates=True, sep=",", index_col=0)
-    df.index = df.index + pd.DateOffset(hours=16)
-    df.index = df.index.tz_localize(tz)  # US/Eastern, UTC
-    # df.index = pd.to_datetime(df.index)
+    dfm = pd.read_csv(filepath, header=0, parse_dates=True, sep=",", index_col=0)
+    dfm.index = dfm.index + pd.DateOffset(hours=16)
+    dfm.index = dfm.index.tz_localize(tz)  # US/Eastern, UTC
+    # dfm.index = pd.to_datetime(dfm.index)
     if adjust:
-        df["Open"] = df["Adj Close"] / df["Close"] * df["Open"]
-        df["High"] = df["Adj Close"] / df["Close"] * df["High"]
-        df["Low"] = df["Adj Close"] / df["Close"] * df["Low"]
-        df["Volume"] = df["Adj Close"] / df["Close"] * df["Volume"]
-        df["Close"] = df["Adj Close"]
+        dfm["Open"] = dfm["Adj Close"] / dfm["Close"] * dfm["Open"]
+        dfm["High"] = dfm["Adj Close"] / dfm["Close"] * dfm["High"]
+        dfm["Low"] = dfm["Adj Close"] / dfm["Close"] * dfm["Low"]
+        dfm["Volume"] = dfm["Adj Close"] / dfm["Close"] * dfm["Volume"]
+        dfm["Close"] = dfm["Adj Close"]
 
-    df = df[["Open", "High", "Low", "Close", "Volume"]]
-    return df
+    dfm = dfm[["Open", "High", "Low", "Close", "Volume"]]
+    return dfm
 
 
 def read_intraday_bar_pickle(filepath: str, syms: list, tz: str = "America/New_York"):
@@ -99,9 +99,9 @@ def read_intraday_bar_pickle(filepath: str, syms: list, tz: str = "America/New_Y
     dict_ret = {}
     for sym in syms:
         try:
-            df = dict_hist_data[sym]
-            df.index = df.index.tz_localize(tz)  # # US/Eastern, UTC
-            dict_ret[sym] = df
+            dfm = dict_hist_data[sym]
+            dfm.index = dfm.index.tz_localize(tz)  # # US/Eastern, UTC
+            dict_ret[sym] = dfm
         except:  # pylint: disable=bare-except
             pass
     return dict_ret

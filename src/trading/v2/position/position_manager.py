@@ -6,7 +6,6 @@ import logging
 
 from .contract_event import ContractEvent
 from ..data.data_board import DataBoard
-from ..order.fill_event import FillEvent
 from .position_event import PositionEvent
 
 _logger = logging.getLogger(__name__)
@@ -134,7 +133,7 @@ class PositionManager:
         pos = pos_event.to_position()
         self.positions[pos.full_symbol] = pos
 
-    def on_fill(self, fill_event: FillEvent):
+    def on_fill(self, fill_event: "FillEvent"):
         """
         This works only on stocks.
         TODO: consider margin

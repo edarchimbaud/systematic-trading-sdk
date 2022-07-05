@@ -1,7 +1,7 @@
 """
 Fill event.
 """
-from ..event.event import *
+from ..event.event import Event, EventType
 from ..position.position import Position
 
 
@@ -9,6 +9,8 @@ class FillEvent(Event):
     """
     Fill event, with filled quantity/size and price
     """
+
+    # pylint: disable=too-many-instance-attributes
 
     def __init__(self):
         """

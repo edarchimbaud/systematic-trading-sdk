@@ -12,6 +12,8 @@ class OrderEvent(Event):
     Order event
     """
 
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(self):
         """
         Order and order status.

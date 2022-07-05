@@ -1,4 +1,5 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Initialize the account module.
+"""
 from .account_event import *
 from .account_manager import *

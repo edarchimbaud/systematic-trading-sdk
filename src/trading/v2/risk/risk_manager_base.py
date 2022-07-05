@@ -4,7 +4,6 @@ Risk manager base class.
 from abc import ABCMeta, abstractmethod
 
 from ..order.order_event import OrderEvent
-from ..strategy.strategy_manager import StrategyManager
 
 
 class RiskManagerBase(metaclass=ABCMeta):
@@ -12,16 +11,18 @@ class RiskManagerBase(metaclass=ABCMeta):
     RiskManager base class.
     """
 
+    # pylint: disable=too-few-public-methods
+
     @abstractmethod
     def order_in_compliance(
-        self, o: OrderEvent, strategy_manager: StrategyManager = None
+        self, order: OrderEvent, strategy_manager: "StrategyManager" = None
     ):
         """
         Order in compliance.
 
         Parameters
         ----------
-            o : Order
+            order : Order
                 Order.
 
             strategy_manager : StrategyManager

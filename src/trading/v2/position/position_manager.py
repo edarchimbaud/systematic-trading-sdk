@@ -12,7 +12,7 @@ from .position_event import PositionEvent
 _logger = logging.getLogger(__name__)
 
 
-class PositionManager(object):
+class PositionManager:
     """
     Position manager.
     """
@@ -81,8 +81,7 @@ class PositionManager(object):
         """
         if symbol in self.positions:
             return self.positions[symbol].size
-        else:
-            return 0
+        return 0
 
     def get_cash(self):
         """
@@ -95,9 +94,9 @@ class PositionManager(object):
         Get total pnl.
         """
         total_pnl = 0
-        for s, pos in self.positions.items():
-            cp, op = pos.get_current_pnl()
-            total_pnl = total_pnl + cp + op
+        for _, pos in self.positions.items():
+            realized_pnl, unrealized_pnl = pos.get_current_pnl()
+            total_pnl = total_pnl + realized_pnl + unrealized_pnl
         return total_pnl
 
     def on_contract(self, contract: ContractEvent):
@@ -185,7 +184,7 @@ class PositionManager(object):
                 pos.mark_to_market(real_last_price, multiplier)
                 # data board not updated yet; get_last_time return previous time_stamp
                 self.current_total_capital += (
-                    self.positions[sym].size
+                    pos.size
                     * (real_last_price - data_board.get_last_price(sym))
                     * multiplier
                 )

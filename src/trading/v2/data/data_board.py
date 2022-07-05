@@ -4,7 +4,7 @@ Databoard for trading.
 import pandas as pd
 
 
-class DataBoard(object):
+class DataBoard:
     """
     Data tracker that holds current market data info
     """
@@ -15,6 +15,7 @@ class DataBoard(object):
         self._current_time = None
         self._placeholder = "PLACEHOLDER"
         self._data_index = None
+        self._data_index_data_stream = None
 
     def initialize_hist_data(self, data_key: str, data: dict) -> None:
         """
@@ -72,16 +73,15 @@ class DataBoard(object):
         """
         if symbol in self._current_data_dict:
             return self._current_data_dict[symbol].price
-        elif symbol in self._hist_data_dict:
+        if symbol in self._hist_data_dict:
             return self._hist_data_dict[symbol].loc[timestamp, "Close"]
-        elif (
+        if (
             symbol[:-5] in self._hist_data_dict
         ):  # FUT root symbol e.g. CL, -5 assumes CLZ2020
             return self._hist_data_dict[symbol[:-5]].loc[
                 timestamp, symbol
             ]  # column series up to timestamp inclusive
-        else:
-            return None
+        return None
 
     def get_last_timestamp(self, symbol: str) -> int:
         """
@@ -98,10 +98,9 @@ class DataBoard(object):
         """
         if symbol in self._current_data_dict:
             return self._current_data_dict[symbol].timestamp
-        elif self._placeholder in self._current_data_dict:
+        if self._placeholder in self._current_data_dict:
             return self._current_data_dict[self._placeholder].timestamp
-        else:
-            return self._current_time
+        return self._current_time
 
     def get_current_timestamp(self):
         """
@@ -131,12 +130,11 @@ class DataBoard(object):
         """
         if symbol in self._hist_data_dict:
             return self._hist_data_dict[symbol][:timestamp]  # up to timestamp inclusive
-        elif symbol[:-5] in self._hist_data_dict.keys():  # FUT root symbol e.g. CL
+        if symbol[:-5] in self._hist_data_dict:  # FUT root symbol e.g. CL
             return self._hist_data_dict[symbol[:-5]][symbol][
                 :timestamp
             ]  # column series up to timestamp inclusive
-        else:
-            return None
+        return None
 
     def get_hist_sym_time_index(self, symbol: str) -> pd.DatetimeIndex:
         """
@@ -150,23 +148,22 @@ class DataBoard(object):
         """
         if symbol in self._hist_data_dict:
             return self._hist_data_dict[symbol].index
-        elif symbol[:-5] in self._hist_data_dict:  # FUT root symbol e.g. CL
+        if symbol[:-5] in self._hist_data_dict:  # FUT root symbol e.g. CL
             return self._hist_data_dict[symbol[:-5]].index
-        else:
-            return None
+        return None
 
     def get_hist_time_index(self):
         """
         Retrieve historical calendar this is not look forwward.
         """
         if self._data_index is None:
-            for k, v in self._hist_data_dict.items():
+            for value in self._hist_data_dict.values():
                 if self._data_index is None:
-                    self._data_index = v.index
+                    self._data_index = value.index
                 else:
                     # pylint: disable=attribute-defined-outside-init
                     self._data_index_data_stream = self._data_index.join(
-                        v.index,
+                        value.index,
                         how="outer",
                         sort=True,
                     )

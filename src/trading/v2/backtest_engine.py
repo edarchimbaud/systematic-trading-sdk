@@ -23,10 +23,12 @@ from .strategy import StrategyBase, StrategyManager
 _logger = logging.getLogger(__name__)
 
 
-class BacktestEngine(object):
+class BacktestEngine:
     """
     Event driven backtest engine
     """
+
+    # pylint: disable=too-many-instance-attributes
 
     def __init__(self, start_date: datetime = None, end_date: datetime = None):
         """
@@ -43,10 +45,10 @@ class BacktestEngine(object):
         self._current_time = None
         self._start_date = start_date
         self._end_date = end_date
-        self.config = dict()
+        self.config = {}
         self.config[
             "strategy"
-        ] = dict()  # to be consistent with live; in backtest, strategy is set outside
+        ] = {}  # to be consistent with live; in backtest, strategy is set outside
         self.instrument_meta = {}  # one copy of meta dict shared across program
         self._data_feed = BacktestDataFeed(self._start_date, self._end_date)
         self._data_board = DataBoard()
@@ -130,11 +132,11 @@ class BacktestEngine(object):
         if data_key not in self.instrument_meta:
             keys = data_key.split(" ")
             # find first digit position
-            for i, c in enumerate(keys[0]):
-                if c.isdigit():
+            for index, character in enumerate(keys[0]):
+                if character.isdigit():
                     break
-                if i < len(keys[0]):
-                    sym_root = keys[0][: i - 1]
+                if index < len(keys[0]):
+                    sym_root = keys[0][: index - 1]
                     if sym_root in self.instrument_meta:
                         self.instrument_meta[data_key] = self.instrument_meta[sym_root]
 
@@ -164,7 +166,8 @@ class BacktestEngine(object):
 
         ## 6. wire up event handlers
         self._events_engine.register_handler(EventType.TICK, self._tick_event_handler)
-        # to be consistent with current live, order is placed directly; this accepts other status like status, fill, cancel
+        # to be consistent with current live, order is placed directly;
+        # this accepts other status like status, fill, cancel
         self._events_engine.register_handler(EventType.ORDER, self._order_event_handler)
         self._events_engine.register_handler(EventType.FILL, self._fill_event_handler)
 
@@ -179,12 +182,13 @@ class BacktestEngine(object):
         """
         self._current_time = tick_event.timestamp
 
-        # performance update goes before position and databoard updates because it updates previous day performance
+        # performance update goes before position and databoard updates
+        # because it updates previous day performance
         # it can't update today because orders haven't been filled yet.
         self._performance_manager.update_performance(
             self._current_time, self._position_manager, self._data_board
         )
-        self._position_manager.mark_to_market(
+        self._position_manager.mark_to_market(  # pylint: disable=duplicate-code
             tick_event.timestamp,
             tick_event.full_symbol,
             tick_event.price,
@@ -192,11 +196,12 @@ class BacktestEngine(object):
         )
         self._strategy.on_tick(
             tick_event
-        )  # plus strategy.position_manager market to marekt
+        )  # plus strategy.position_manager market to market
         # data_baord update after strategy, so it still holds price of last tick; for position MtM
-        # strategy uses tick.price for current price; and use data_board.last_price for previous price
-        # for backtest, this is PLACEHOLDER based on timestamp.
-        # strategy pull directly from data_board hist_data for current_price; and data_board.last_price for previous price
+        # strategy uses tick.price for current price; and use data_board.last_price
+        # for previous price for backtest, this is PLACEHOLDER based on timestamp.
+        # strategy pull directly from data_board hist_data for current_price;
+        # and data_board.last_price for previous price
         self._data_board.on_tick(tick_event)
         # check standing orders, after databoard is updated
         self._backtest_brokerage.on_tick(tick_event)
@@ -213,7 +218,6 @@ class BacktestEngine(object):
         # self._backtest_brokerage.place_order(order_event)
         self._order_manager.on_order_status(order_event)
         self._strategy.on_order_status(order_event)
-        pass
 
     def _fill_event_handler(self, fill_event: FillEvent):
         """

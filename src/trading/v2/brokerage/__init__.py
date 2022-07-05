@@ -1,4 +1,5 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Initialize brokerage module.
+"""
 from .backtest_brokerage import *
 from .ib_brokerage import *

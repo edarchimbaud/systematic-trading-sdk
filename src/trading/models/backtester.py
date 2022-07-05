@@ -198,7 +198,6 @@ class Backtester:
         )
 
     def next(self):
-        # pylint: disable=no-self-use
         """
         This function contains the logic of the strategy: decision, update of positions, etc.
         It is called on every new day.
@@ -212,7 +211,6 @@ class Backtester:
         raise Exception("To be implemented in the child class")
 
     def next_indicators(self):
-        # pylint: disable=no-self-use
         """
         This function contains the logic of the calculation of the indicators.
         It is called on every new day, after next().

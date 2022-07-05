@@ -1,17 +1,18 @@
 """
 Backtest event engine.
 """
+# pylint: disable=duplicate-code
 from collections import defaultdict
 import logging
+from queue import Empty, Queue
 
 from .event import Event
-from queue import Empty, Queue
 
 
 _logger = logging.getLogger(__name__)
 
 
-class BacktestEventEngine(object):
+class BacktestEventEngine:
     """
     Event queue + a while loop to dispatch events
     """

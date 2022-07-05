@@ -4,7 +4,7 @@ Brokerage base module.
 from abc import abstractmethod
 
 
-class BrokerageBase(object):
+class BrokerageBase:
     """
     Brokerage base class.
     """

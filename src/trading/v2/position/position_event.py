@@ -10,6 +10,8 @@ class PositionEvent(Event):
     Position event directly from live broker.
     """
 
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(self):
         """
         Initialises order

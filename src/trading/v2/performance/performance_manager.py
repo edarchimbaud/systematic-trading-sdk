@@ -14,7 +14,7 @@ from ..position.position_manager import PositionManager
 _logger = logging.getLogger(__name__)
 
 
-class PerformanceManager(object):
+class PerformanceManager:
     """
     https://www.quantopian.com/docs/api-reference/pyfolio-api-reference
     Record equity, positions, and trades in accordance to pyfolio format
@@ -34,6 +34,8 @@ class PerformanceManager(object):
         self._equity = None
         self._df_positions = None
         self._df_trades = None
+        self._realized_pnl = 0.0
+        self._unrealized_pnl = 0.0
 
     @property
     def df_positions(self):
@@ -106,7 +108,8 @@ class PerformanceManager(object):
             fill_event: FillEvent
                 The fill event.
         """
-        # self._df_trades.loc[fill_event.timestamp] = [fill_event.fill_size, fill_event.fill_price, fill_event.full_symbol]
+        # self._df_trades.loc[fill_event.timestamp] = [
+        #   fill_event.fill_size, fill_event.fill_price, fill_event.full_symbol]
         self._df_trades = self._df_trades.append(
             pd.DataFrame(
                 {

@@ -1,5 +1,6 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Backtest brokerage module.
+"""
 from .brokerage_base import BrokerageBase
 from ..data.data_board import DataBoard
 from ..data.tick_event import TickEvent
@@ -73,7 +74,8 @@ class BacktestBrokerage(BrokerageBase):
 
         return commission
 
-    def __try_cross_order(self, order_event: OrderEvent, current_price: float) -> None:
+    @staticmethod
+    def __try_cross_order(order_event: OrderEvent, current_price: float) -> None:
         """
         Cross standing order against current price.
 
@@ -133,9 +135,10 @@ class BacktestBrokerage(BrokerageBase):
         # and remove from standing order list
         _remaining_active_orders_id = []
         timestamp = tick_event.timestamp
-        for oid, order_event in self._active_orders.items():
+        for _, order_event in self._active_orders.items():
             # this should be after data board is updated
-            # current_price = self._data_board.get_last_price(tick_event.full_symbol)      # last price is not updated yet
+            # current_price = self._data_board.get_last_price(tick_event.full_symbol)
+            # # last price is not updated yet
             current_price = self._data_board.get_current_price(
                 order_event.full_symbol, timestamp
             )
@@ -148,7 +151,7 @@ class BacktestBrokerage(BrokerageBase):
                 fill.fill_time = timestamp
                 fill.full_symbol = order_event.full_symbol
                 fill.fill_size = order_event.order_size
-                # TODO: use bid/ask to fill short/long
+                # TODO: use bid/ask to fill short/long pylint: disable=fixme
                 fill.fill_price = current_price
                 fill.exchange = "BACKTEST"
                 fill.commission = self.__calculate_commission(
@@ -195,7 +198,8 @@ class BacktestBrokerage(BrokerageBase):
         -------
             No return; fill_event is pushed into message queue.
         """
-        # current_price = self._data_board.get_last_price(order_event.full_symbol)      # last price is not updated yet
+        # current_price = self._data_board.get_last_price(order_event.full_symbol)
+        # # last price is not updated yet
         timestamp = order_event.create_time
         current_price = self._data_board.get_current_price(
             order_event.full_symbol, timestamp
@@ -210,7 +214,7 @@ class BacktestBrokerage(BrokerageBase):
             fill.fill_time = timestamp
             fill.full_symbol = order_event.full_symbol
             fill.fill_size = order_event.order_size
-            # TODO: use bid/ask to fill short/long
+            # TODO: use bid/ask to fill short/long pylint: disable=fixme
             fill.fill_price = current_price
             fill.exchange = "BACKTEST"
             fill.commission = self.__calculate_commission(

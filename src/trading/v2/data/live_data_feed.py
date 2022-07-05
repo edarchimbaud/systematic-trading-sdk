@@ -21,6 +21,8 @@ class LiveDataFeed(DataFeedBase):
     Live DataFeed class
     """
 
+    # pylint: disable=too-many-instance-attributes,too-many-arguments
+
     def __init__(
         self,
         events_queue,
@@ -114,12 +116,11 @@ class LiveDataFeed(DataFeedBase):
         # Determine how to slice
         if start is None and end is None:
             return dfm.iterrows()
-        elif start is not None and end is None:
+        if start is not None and end is None:
             return dfm.ix[start:].iterrows()
-        elif start is None and end is not None:
+        if start is None and end is not None:
             return dfm.ix[:end].iterrows()
-        else:
-            return dfm.ix[start:end].iterrows()
+        return dfm.ix[start:end].iterrows()
 
     def subscribe_ticker(self, ticker: str) -> None:
         """
@@ -187,7 +188,7 @@ class LiveDataFeed(DataFeedBase):
         # If the calc_adj_returns flag is True, then calculate
         # and store the full list of adjusted closing price
         # percentage returns in a list
-        # TODO: Make this faster
+        # TODO: Make this faster pylint: disable=fixme
         if self.calc_adj_returns:
             prev_adj_close = self.tickers[ticker]["adj_close"]
             cur_adj_close = event.adj_close_price

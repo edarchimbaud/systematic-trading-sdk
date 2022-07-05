@@ -2,7 +2,7 @@
 Account event module.
 """
 
-from ..event.event import *
+from ..event.event import Event, EventType
 
 
 class AccountEvent(Event):
@@ -10,6 +10,8 @@ class AccountEvent(Event):
     Account event class.
     Also serve as account.
     """
+
+    # pylint: disable=too-few-public-methods,too-many-instance-attributes
 
     def __init__(self):
         self.event_type = EventType.ACCOUNT

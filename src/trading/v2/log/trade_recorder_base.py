@@ -6,10 +6,12 @@ from abc import ABCMeta, abstractmethod
 from ..event.event import Event
 
 
-class AbstractTradeRecorder(object):
+class AbstractTradeRecorder:
     """
     Transaction recorder
     """
+
+    # pylint: disable=too-few-public-methods
 
     __metaclass__ = ABCMeta
 

@@ -24,10 +24,12 @@ class EventType(Enum):
     LOG = 11
 
 
-class Event(object):
+class Event:
     """
     Base Event class for event-driven system
     """
+
+    # pylint: disable=too-few-public-methods
 
     event_type = EventType.UNDEFINED
 
@@ -42,8 +44,10 @@ class Event(object):
 class LogEvent(Event):
     """
     Log event:
-    TODO seperate ErrorEvent
+    TODO seperate ErrorEvent pylint: disable=fixme
     """
+
+    # pylint: disable=too-few-public-methods
 
     def __init__(self):
         self.event_type = EventType.LOG

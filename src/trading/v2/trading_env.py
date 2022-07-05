@@ -1,6 +1,7 @@
 """
 Gym trading env
-Unlike live engine or backtest engine, where event loops are driven by live ticks or historical ticks,
+Unlike live engine or backtest engine, where event
+loops are driven by live ticks or historical ticks,
 here it is driven by step function, similar to
 https://github.com/openai/gym/blob/master/gym/envs/classic_control/cartpole.py
 The sequence is
@@ -11,6 +12,7 @@ The sequence is
     3.b fill orders        # portfolio rotates into new holdings
 repeat 2, and 3 to interact between agent and env
 """
+# pylint: disable=duplicate-code
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -39,7 +41,10 @@ class TradingEnv(gym.Env):
         If broke, no orders will send
     """
 
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(self, n: np.int32, df_obs_scaled: pd.DataFrame, df_exch: pd.DataFrame):
+        # pylint: disable=invalid-name
         assert n >= 2
 
         self._df_obs_scaled = (
@@ -70,7 +75,8 @@ class TradingEnv(gym.Env):
         self._init_step = 0
         self._current_step = 0
 
-        self._n = n  # n=2: buy/sell 100% or [0, 100%]; n=3: [0, 50%, 100%]; n=4: [0, 33.3%, 66.7%, 100%]
+        # n=2: buy/sell 100% or [0, 100%]; n=3: [0, 50%, 100%]; n=4: [0, 33.3%, 66.7%, 100%]
+        self._n = n
         self._pcts = [pct / (self._n - 1) for pct in range(self._n)]
 
         self.action_space = gym.spaces.Discrete(n=self._n)
@@ -129,7 +135,7 @@ class TradingEnv(gym.Env):
             n_init_step : int
                 Initial step.
         """
-        self._lookback = n_lookback
+        self._look_back = n_lookback
         self._warmup = n_warmup
         self._maxsteps = n_maxsteps
         self._init_step = n_init_step
@@ -150,7 +156,7 @@ class TradingEnv(gym.Env):
 
     def _get_observation(self):
         """
-        Return an array of size self._lookback x features.
+        Return an array of size self._look_back x features.
         Each column is a feature; last feature is NAV.
         Row is in time ascending order. That is, last row is self._current_step.
         """
@@ -171,7 +177,8 @@ class TradingEnv(gym.Env):
     def step(self, action):
         """
         Move one step to the next timestamp, accordingly to action
-        assume hft condition: execution at today 15:59:59, after observing today's ohl and (almost) close.
+        assume hft condition: execution at today 15:59:59, after observing
+        today's ohl and (almost) close.
         execution immediately using market or market on close, no slippage.
         e.g., assume on 12/31/2019, 1/2/2020, and 1/3/2020 prices are $95, $100, $110. respectively.
         The state or observation is prices of last two days.
@@ -187,6 +194,7 @@ class TradingEnv(gym.Env):
         :param action:
         :return:
         """
+        # pylint: disable=too-many-locals
         done = False
 
         current_size = int(
@@ -248,7 +256,13 @@ class TradingEnv(gym.Env):
 
         return new_state, reward, done, info
 
-    def reset(self):
+    def reset(
+        self,
+        *,
+        seed: int | None = None,  # pylint: disable=unused-argument
+        return_info: bool = False,  # pylint: disable=unused-argument
+        options: dict | None = None,  # pylint: disable=unused-argument
+    ):
         """
         Random start time.
         """
@@ -279,7 +293,7 @@ class TradingEnv(gym.Env):
                 The mode to render the environment in.
         """
         # plt.rcParams.update({'font.size': 6})
-        fig, ax = plt.subplots(
+        fig, axis = plt.subplots(
             2, 1, gridspec_kw={"height_ratios": [3, 1]}
         )  # figsize=(15, 8)
         fig.tight_layout()
@@ -289,16 +303,16 @@ class TradingEnv(gym.Env):
         df_price = self._df_exch[x_left:x_right]
         df_nav = self._df_positions["NAV"][x_left:x_right]
 
-        ax[0].tick_params(
+        axis[0].tick_params(
             axis="x",  # changes apply to the x-axis
             which="both",  # both major and minor ticks are affected
             bottom=False,  # ticks along the bottom edge are off
             top=False,  # ticks along the top edge are off
             labelbottom=False,
         )  # labels along the bottom edge are off
-        ax[0].set_xlim([self._df_exch.index[x_left], self._df_exch.index[x_end - 1]])
-        ax[1].set_xlim([self._df_exch.index[x_left], self._df_exch.index[x_end - 1]])
-        ax[0].set_ylim(
+        axis[0].set_xlim([self._df_exch.index[x_left], self._df_exch.index[x_end - 1]])
+        axis[1].set_xlim([self._df_exch.index[x_left], self._df_exch.index[x_end - 1]])
+        axis[0].set_ylim(
             [
                 max(self._df_exch[x_left:x_end].min().item() - 5, 0),
                 self._df_exch[x_left:x_end].max().item() + 5,
@@ -308,10 +322,10 @@ class TradingEnv(gym.Env):
         df_position_diff = df_position - df_position.shift(1)
         df_buy = df_price[df_position_diff > 0]
         df_sell = df_price[df_position_diff < 0]
-        ax[0].plot(df_price, color="black", label="Price")
-        ax[0].plot(df_buy, "^", markersize=5, color="r")
-        ax[0].plot(df_sell, "v", markersize=5, color="g")
-        ax[1].plot(df_nav, color="black", label="NAV")
+        axis[0].plot(df_price, color="black", label="Price")
+        axis[0].plot(df_buy, "^", markersize=5, color="r")
+        axis[0].plot(df_sell, "v", markersize=5, color="g")
+        axis[1].plot(df_nav, color="black", label="NAV")
         # plt.pause(0.001)
 
         # https://stackoverflow.com/questions/7821518/matplotlib-save-plot-to-numpy-array
@@ -325,4 +339,3 @@ class TradingEnv(gym.Env):
         """
         Close the environment.
         """
-        pass

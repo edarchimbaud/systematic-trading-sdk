@@ -24,6 +24,8 @@ class StrategyBase(metaclass=ABCMeta):
     Base strategy class
     """
 
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(self):
         """
         Initialize strategy.
@@ -104,7 +106,7 @@ class StrategyBase(metaclass=ABCMeta):
         if params_dict is not None:
             for key, value in params_dict.items():
                 try:
-                    self.__setattr__(key, value)
+                    setattr(self, key, value)
                 except:  # pylint: disable=bare-except
                     pass
 
@@ -157,7 +159,7 @@ class StrategyBase(metaclass=ABCMeta):
         """
         # for live trading, turn off p&l tick by not calling super.on_tick()
         # for backtest, call super().on_tick() if need to track positions or npv or cash
-        self._position_manager.mark_to_market(
+        self._position_manager.mark_to_market(  # pylint: disable=duplicate-code
             tick_event.timestamp,
             tick_event.full_symbol,
             tick_event.price,
@@ -220,14 +222,14 @@ class StrategyBase(metaclass=ABCMeta):
         """
         if size_from == size_to:
             return
-        o = OrderEvent()
-        o.full_symbol = sym
-        o.order_type = OrderType.MARKET
-        o.order_size = size_to - size_from
+        order = OrderEvent()
+        order.full_symbol = sym
+        order.order_type = OrderType.MARKET
+        order.order_size = size_to - size_from
         if timestamp is not None:
-            o.create_time = timestamp
+            order.create_time = timestamp
 
-        self.place_order(o)
+        self.place_order(order)
 
     def cancel_order(self, oid: int):
         """

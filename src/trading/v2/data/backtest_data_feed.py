@@ -9,7 +9,8 @@ from .tick_event import TickEvent
 
 class BacktestDataFeed(DataFeedBase):
     """
-    BacktestDataFeed uses PLACEHOLDER to stream_next; actual data comes from data_board.get_hist_price
+    BacktestDataFeed uses PLACEHOLDER to stream_next;
+    actual data comes from data_board.get_hist_price
     This is an easy way to handle multiple sources
     """
 
@@ -55,7 +56,7 @@ class BacktestDataFeed(DataFeedBase):
                     self._data_stream >= self._start_date
                 ]
 
-        self._data_stream_iter = self._data_stream.__iter__()
+        self._data_stream_iter = self._data_stream.iter()
 
     def unsubscribe_market_data(self, symbols=None):
         """
@@ -66,7 +67,6 @@ class BacktestDataFeed(DataFeedBase):
             symbols: list of str
                 List of symbols to unsubscribe from.
         """
-        pass
 
     def stream_next(self):
         """
@@ -74,8 +74,8 @@ class BacktestDataFeed(DataFeedBase):
         """
         index = next(self._data_stream_iter)
 
-        t = TickEvent()
-        t.full_symbol = "PLACEHOLDER"  # place holders
-        t.timestamp = index
+        tick_event = TickEvent()
+        tick_event.full_symbol = "PLACEHOLDER"  # place holders
+        tick_event.timestamp = index
 
-        return t
+        return tick_event

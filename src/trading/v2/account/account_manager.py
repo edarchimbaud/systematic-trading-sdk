@@ -5,7 +5,7 @@ Account manager module.
 from .account_event import AccountEvent
 
 
-class AccountManager(object):
+class AccountManager:
     """
     Account manager class.
     """

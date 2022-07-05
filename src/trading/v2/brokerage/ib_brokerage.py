@@ -59,6 +59,8 @@ class InteractiveBrokers(BrokerageBase):
     Interactive Brokers class.
     """
 
+    # pylint: disable=too-many-instance-attributes,too-many-public-methods
+
     def __init__(self, msg_event_engine, tick_event_engine, account) -> None:
         """
         Initialize InteractiveBrokers brokerage.
@@ -519,6 +521,7 @@ class InteractiveBrokers(BrokerageBase):
         -------
             IB contract.
         """
+        # pylint: disable=too-many-statements
         symbol_fields = symbol.split(" ")
         ib_contract = Contract()
 
@@ -742,6 +745,8 @@ class IBApi(EWrapper, EClient):
     Interactive Brokers API wrapper.
     """
 
+    # pylint: disable=too-many-instance-attributes,too-many-public-methods
+
     def __init__(self, broker):
         EWrapper.__init__(self)
         EClient.__init__(self, wrapper=self)
@@ -764,7 +769,8 @@ class IBApi(EWrapper, EClient):
         else:
             _logger.info("Finishing test")
 
-    def stop(self) -> None:
+    @staticmethod
+    def stop() -> None:
         """
         Stop the IB API.
         """
@@ -870,6 +876,7 @@ class IBApi(EWrapper, EClient):
         whyHeld: str,
         mktCapPrice: float,
     ):
+        # pylint: disable=too-many-arguments
         super().orderStatus(
             orderId,
             status,
@@ -916,7 +923,7 @@ class IBApi(EWrapper, EClient):
             order_event.order_status = OrderStatus.FILLED
         elif status == "PreSubmitted":
             order_event.order_status = OrderStatus.PENDING_SUBMIT
-        elif status == "Cancelled" or status == "ApiCancelled":
+        elif status in ["Cancelled", "ApiCancelled"]:
             order_event.order_status = OrderStatus.CANCELED
             order_event.fill_size = filled  # remaining = order_size - fill_size
             order_event.cancel_time = datetime.now().strftime("%H:%M:%S.%f")
@@ -940,6 +947,7 @@ class IBApi(EWrapper, EClient):
     def accountSummary(
         self, reqId: int, account: str, tag: str, value: str, currency: str
     ):
+        # pylint: disable=too-many-arguments
         super().accountSummary(reqId, account, tag, value, currency)
         msg = (
             f"AccountSummary. ReqId: {reqId}, Account: {account}, Tag: {tag}, "
@@ -1559,7 +1567,8 @@ class IBApi(EWrapper, EClient):
 
     def scannerParameters(self, xml: str):
         super().scannerParameters(xml)
-        open("log/scanner.xml", "w", encoding="utf-8").write(xml)
+        with open("log/scanner.xml", "w", encoding="utf-8") as handler:
+            handler.write(xml)
         _logger.info("ScannerParameters received.")
 
     def scannerData(
@@ -1620,7 +1629,8 @@ class IBApi(EWrapper, EClient):
     def receiveFA(self, faData: FaDataType, cxml: str):
         super().receiveFA(faData, cxml)
         _logger.info("Receiving FA: %s", faData)
-        open("log/fa.xml", "w", encoding="utf-8").write(cxml)
+        with open("log/fa.xml", "w", encoding="utf-8") as handler:
+            handler.write(cxml)
 
     def softDollarTiers(self, reqId: int, tiers: list):
         super().softDollarTiers(reqId, tiers)

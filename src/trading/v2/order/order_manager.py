@@ -13,7 +13,7 @@ from ..order.order_event import OrderEvent
 _logger = logging.getLogger(__name__)
 
 
-class OrderManager(object):
+class OrderManager:
     """
     Manage/track all the orders
     """
@@ -38,7 +38,6 @@ class OrderManager(object):
         """
         On tick event, update the order status.
         """
-        pass
 
     def on_order_status(self, order_event: OrderEvent):
         """
@@ -65,7 +64,7 @@ class OrderManager(object):
                 _logger.error("%s OrderManager Error: orders dont match", self.name)
                 return False
             # only change status when it is logical
-            elif (
+            if (
                 self.order_dict[order_event.order_id].order_status.value
                 <= order_event.order_status.value
             ):
@@ -82,20 +81,19 @@ class OrderManager(object):
                     if order_event.order_id in self.standing_order_set:
                         self.standing_order_set.remove(order_event.order_id)
                 return True
-            else:  # no need to change status
-                return False
+            # no need to change status
+            return False
         # order_id not yet assigned, open order at connection or placed by trader?
-        else:
-            self.order_dict[order_event.order_id] = copy(
-                order_event
-            )  # it is important to use copy
-            if order_event.order_status < OrderStatus.FILLED:
-                self.standing_order_set.add(order_event.order_id)
-            elif order_event.order_status == OrderStatus.CANCELED:
-                self.canceled_order_set.add(order_event.order_id)
-                if order_event.order_id in self.standing_order_set:
-                    self.standing_order_set.remove(order_event.order_id)
-            return True
+        self.order_dict[order_event.order_id] = copy(
+            order_event
+        )  # it is important to use copy
+        if order_event.order_status < OrderStatus.FILLED:
+            self.standing_order_set.add(order_event.order_id)
+        elif order_event.order_status == OrderStatus.CANCELED:
+            self.canceled_order_set.add(order_event.order_id)
+            if order_event.order_id in self.standing_order_set:
+                self.standing_order_set.remove(order_event.order_id)
+        return True
 
     def on_cancel(self, oid: int):
         """

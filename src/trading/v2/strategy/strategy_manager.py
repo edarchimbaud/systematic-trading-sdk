@@ -9,6 +9,7 @@ from trading.v2.position.position import Position
 
 from ..brokerage.backtest_brokerage import BacktestBrokerage
 from ..data.data_board import DataBoard
+from ..data.tick_event import TickEvent
 from ..order.order_event import OrderEvent
 from ..order.order_manager import OrderManager
 from ..order.order_status import OrderStatus
@@ -18,10 +19,12 @@ from ..risk.risk_manager import RiskManager
 _logger = logging.getLogger(__name__)
 
 
-class StrategyManager(object):
+class StrategyManager:
     """
     Strategy manager will check with risk manager before send out orders
     """
+
+    # pylint: disable=too-many-instance-attributes,too-many-public-methods
 
     def __init__(
         self,
@@ -59,6 +62,7 @@ class StrategyManager(object):
             data_board: DataBoard
                 Data board instance.
         """
+        # pylint: disable=too-many-arguments
         self._config = config
         self._broker = broker
         self._order_manager = order_manager
@@ -82,45 +86,50 @@ class StrategyManager(object):
             strat_dict: dict
                 Strategy dict.
         """
+        # pylint: disable=too-many-branches
         sid = 1  # 0 is manual discretionary trade, or not found
         # similar to backtest; strategy sets capital, params, and symbols
-        for k, v in strat_dict.items():
-            v.id = sid
+        for key, value in strat_dict.items():
+            value.id = sid
             sid += 1
-            v.name = k
-            if v.name in self._config["strategy"]:
-                v.active = self._config["strategy"][v.name]["active"]
-                v.set_capital(self._config["strategy"][v.name]["capital"])  # float
-                v.set_params(self._config["strategy"][v.name]["params"])  # dict
-                v.set_symbols(self._config["strategy"][v.name]["symbols"])  # list
+            value.name = key
+            if value.name in self._config["strategy"]:
+                value.active = self._config["strategy"][value.name]["active"]
+                value.set_capital(
+                    self._config["strategy"][value.name]["capital"]
+                )  # float
+                value.set_params(self._config["strategy"][value.name]["params"])  # dict
+                value.set_symbols(
+                    self._config["strategy"][value.name]["symbols"]
+                )  # list
 
                 # yaml converts to seconds
-                if "order_start_time" in self._config["strategy"][v.name].keys():
+                if "order_start_time" in self._config["strategy"][value.name].keys():
                     if isinstance(
-                        self._config["strategy"][v.name]["order_start_time"], int
+                        self._config["strategy"][value.name]["order_start_time"], int
                     ):
-                        self._config["strategy"][v.name]["order_start_time"] = str(
+                        self._config["strategy"][value.name]["order_start_time"] = str(
                             timedelta(
-                                seconds=self._config["strategy"][v.name][
+                                seconds=self._config["strategy"][value.name][
                                     "order_start_time"
                                 ]
                             )
                         )
-                if "order_end_time" in self._config["strategy"][v.name].keys():
+                if "order_end_time" in self._config["strategy"][value.name].keys():
                     if isinstance(
-                        self._config["strategy"][v.name]["order_end_time"], int
+                        self._config["strategy"][value.name]["order_end_time"], int
                     ):
-                        self._config["strategy"][v.name]["order_end_time"] = str(
+                        self._config["strategy"][value.name]["order_end_time"] = str(
                             timedelta(
-                                seconds=self._config["strategy"][v.name][
+                                seconds=self._config["strategy"][value.name][
                                     "order_end_time"
                                 ]
                             )
                         )
 
-            self._strategy_dict[v.id] = v
-            self._sid_oid_dict[v.id] = []  # record its orders
-            for sym in v.symbols:
+            self._strategy_dict[value.id] = value
+            self._sid_oid_dict[value.id] = []  # record its orders
+            for sym in value.symbols:
                 if sym not in self._instrument_meta.keys():
                     # find first digit position
                     sym_split = sym.split(" ")
@@ -136,16 +145,15 @@ class StrategyManager(object):
                             ]  # add for quick access
 
                 if sym in self._tick_strategy_dict:
-                    self._tick_strategy_dict[sym].append(v.id)
+                    self._tick_strategy_dict[sym].append(value.id)
                 else:
-                    self._tick_strategy_dict[sym] = [v.id]
-                if sym in self._broker.market_data_subscription_reverse_dict.keys():
+                    self._tick_strategy_dict[sym] = [value.id]
+                if sym in self._broker.market_data_subscription_reverse_dict:
                     continue
-                else:
-                    _logger.info("add %s", sym)
-                    self._broker.market_data_subscription_reverse_dict[sym] = -1
+                _logger.info("add %s", sym)
+                self._broker.market_data_subscription_reverse_dict[sym] = -1
 
-            v.on_init(self, self._data_board, self._instrument_meta)
+            value.on_init(self, self._data_board, self._instrument_meta)
 
     @property
     def config(self):
@@ -335,8 +343,16 @@ class StrategyManager(object):
                     order, check_risk=False
                 )  # flat strategy doesnot cehck risk
 
-    def on_tick(self, k):
-        if k.full_symbol in self._tick_strategy_dict.keys():
+    def on_tick(self, k: TickEvent):
+        """
+        On tick.
+
+        Parameters
+        ----------
+            k: TickEvent
+                Tick event.
+        """
+        if k.full_symbol in self._tick_strategy_dict:
             s_list = self._tick_strategy_dict[k.full_symbol]
             for sid in s_list:
                 if self._strategy_dict[sid].active:
@@ -352,7 +368,6 @@ class StrategyManager(object):
             pos: Position
                 Position.
         """
-        pass
 
     def on_order_status(self, order_event: OrderEvent):
         """
@@ -369,7 +384,8 @@ class StrategyManager(object):
             self._strategy_dict[sid].on_order_status(order_event)
         else:
             _logger.info(
-                "strategy manager doesnt hold the oid %s to set status %s, possibly from outside of the system",
+                "strategy manager doesnt hold the oid %s to set status %s, "
+                "possibly from outside of the system",
                 order_event.order_id,
                 order_event.order_status,
             )
@@ -389,7 +405,8 @@ class StrategyManager(object):
             self._strategy_dict[sid].on_order_status(order_event)
         else:
             _logger.info(
-                "strategy manager doesnt hold the oid %s to cancel, possibly from outside of the system",
+                "strategy manager doesnt hold the oid %s to cancel, "
+                "possibly from outside of the system",
                 order_event.order_id,
             )
 
@@ -408,6 +425,7 @@ class StrategyManager(object):
             self._strategy_dict[sid].on_fill(fill_event)
         else:
             _logger.info(
-                "strategy manager doesnt hold the oid %s to fill, possibly from outside of the system",
+                "strategy manager doesnt hold the oid %s to fill, "
+                "possibly from outside of the system",
                 fill_event.order_id,
             )

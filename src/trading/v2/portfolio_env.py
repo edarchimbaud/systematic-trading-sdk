@@ -1,6 +1,7 @@
 """
 Gym trading env
-Unlike live engine or backtest engine, where event loops are driven by live ticks or historical ticks,
+Unlike live engine or backtest engine, where event loops
+are driven by live ticks or historical ticks,
 here it is driven by step function, similar to
 https://github.com/openai/gym/blob/master/gym/envs/classic_control/cartpole.py
 The sequence is
@@ -11,6 +12,7 @@ The sequence is
     3.b fill orders        # portfolio rotates into new holdings
 repeat 2, and 3 to interact between agent and env
 """
+# pylint: disable=duplicate-code
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -26,6 +28,7 @@ class PortfolioWeightsBox(gym.spaces.Box):
     def __init__(
         self, low, high, shape: np.int32 = 1, dtype=np.float32, seed=None
     ) -> None:
+        # pylint: disable=too-many-arguments
         assert shape >= 1
         self.n_assets = shape + 1  # add cash
         super().__init__(low, high, (self.n_assets,), dtype, seed)
@@ -62,6 +65,8 @@ class PortfolioEnv(gym.Env):
         after predefined window
         If broke, no orders will send
     """
+
+    # pylint: disable=too-many-instance-attributes
 
     def __init__(self, df_obs_scaled: pd.DataFrame, df_exch: pd.DataFrame):
         assert df_obs_scaled.shape[0] == df_exch.shape[0]
@@ -136,7 +141,24 @@ class PortfolioEnv(gym.Env):
         n_maxsteps: np.int32 = 252,
         n_init_step: np.int32 = 0,
     ):
-        self._lookback = n_lookback
+        """
+        Set steps.
+
+        Parameters
+        ----------
+            n_lookback : np.int32
+                Lookback window.
+
+            n_warmup : np.int32
+                Warmup window.
+
+            n_maxsteps : np.int32
+                Max steps in one episode.
+
+            n_init_step : np.int32
+                Initial step.
+        """
+        self._look_back = n_lookback
         self._warmup = n_warmup
         self._maxsteps = n_maxsteps
         self._init_step = n_init_step
@@ -145,11 +167,19 @@ class PortfolioEnv(gym.Env):
             self._lock_init_step = True
 
     def set_feature_scaling(self, max_nav_scaler: np.float32 = 1.0):
+        """
+        Set max_nav_scaler.
+
+        Parameters
+        ----------
+            max_nav_scaler : np.float32
+                Max nav scaler.
+        """
         self._max_nav_scaler = max_nav_scaler
 
     def _get_observation(self):
         """
-        return an array of size self._lookback x features.
+        return an array of size self._look_back x features.
         Each column is a feature; last feature is NAV.
         Row is in time ascending order. That is, last row is self._current_step.
         """
@@ -169,8 +199,9 @@ class PortfolioEnv(gym.Env):
 
     def step(self, action):
         """
-        move one step to the next timestamp, accordingly to action
-        assume hft condition: execution at today 15:59:59, after observing today's ohl and (almost) close.
+        Move one step to the next timestamp, accordingly to action
+        assume hft condition: execution at today 15:59:59, after
+        observing today's ohl and (almost) close.
         execution immediately using market or market on close, no slippage.
         e.g., assume on 12/31/2019, 1/2/2020, and 1/3/2020 prices are $95, $100, $110. respectively.
         The state or observation is prices of last two days.
@@ -186,6 +217,7 @@ class PortfolioEnv(gym.Env):
         :param action:
         :return:
         """
+        # pylint: disable=too-many-locals
         done = False
 
         current_size = (
@@ -272,14 +304,14 @@ class PortfolioEnv(gym.Env):
         return self._get_observation()
 
     def render(self, mode="human"):
-        fig, ax = plt.subplots()  # figsize=(15, 8)
-        ax.set_xlim(
+        fig, axis = plt.subplots()  # figsize=(15, 8)
+        axis.set_xlim(
             [
                 self._df_exch.index[self._init_step],
                 self._df_exch.index[self._init_step + self._maxsteps + 1],
             ]
         )
-        ax.plot(
+        axis.plot(
             self._df_exch[self._init_step : self._current_step + 1],
             color="blue",
             label="Price",

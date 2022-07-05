@@ -1,5 +1,10 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+"""
+Initialize package.
+"""
+# https://docs.python-guide.org/writing/logging/
+
+import logging
+
 from .account import *
 from .brokerage import *
 from .data import *
@@ -14,8 +19,5 @@ from .util import *
 from .backtest_engine import BacktestEngine
 from .trading_env import TradingEnv
 from .portfolio_env import PortfolioEnv
-
-# https://docs.python-guide.org/writing/logging/
-import logging
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())

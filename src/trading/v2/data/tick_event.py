@@ -25,6 +25,8 @@ class TickEvent(Event):
     Tick event
     """
 
+    # pylint: disable=too-many-instance-attributes
+
     def __init__(self):
         """
         Initialises Tick

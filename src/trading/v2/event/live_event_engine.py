@@ -1,6 +1,7 @@
 """
 Live event engine module.
 """
+# pylint: disable=duplicate-code
 from queue import Queue, Empty
 from threading import Thread
 from collections import defaultdict
@@ -11,7 +12,7 @@ from .event import Event
 _logger = logging.getLogger(__name__)
 
 
-class LiveEventEngine(object):
+class LiveEventEngine:
     """
     Event queue + a thread to dispatch events
     """
@@ -36,7 +37,7 @@ class LiveEventEngine(object):
         """
         run dispatcher
         """
-        while self._active == True:
+        while self._active:
             try:
                 event = self._queue.get(block=True, timeout=1)
                 # call event handlers

@@ -18,6 +18,8 @@ class ExampleTradeRecorder(AbstractTradeRecorder):
     CSV file in the output directory.
     """
 
+    # pylint: disable=too-few-public-methods
+
     def __init__(self, output_dir: str):
         """
         Wipe the existing trade log for the day, leaving only

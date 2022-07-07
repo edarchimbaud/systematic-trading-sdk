@@ -16,7 +16,6 @@ _logger = logging.getLogger(__name__)
 
 class PerformanceManager:
     """
-    https://www.quantopian.com/docs/api-reference/pyfolio-api-reference
     Record equity, positions, and trades in accordance to pyfolio format
     First date will be the first data start date
     """
@@ -93,7 +92,7 @@ class PerformanceManager:
             np.empty(
                 0,
                 dtype=np.dtype(
-                    [("amount", np.int64), ("price", np.float64), ("symbol", np.str)]
+                    [("amount", np.int64), ("price", np.float64), ("symbol", str)]
                 ),
             )
         )
@@ -110,15 +109,18 @@ class PerformanceManager:
         """
         # self._df_trades.loc[fill_event.timestamp] = [
         #   fill_event.fill_size, fill_event.fill_price, fill_event.full_symbol]
-        self._df_trades = self._df_trades.append(
-            pd.DataFrame(
-                {
-                    "amount": [int(fill_event.fill_size)],
-                    "price": [fill_event.fill_price],
-                    "symbol": [fill_event.full_symbol],
-                },
-                index=[fill_event.fill_time],
-            )
+        self._df_trades = pd.concat(
+            [
+                self._df_trades,
+                pd.DataFrame(
+                    {
+                        "amount": [int(fill_event.fill_size)],
+                        "price": [fill_event.fill_price],
+                        "symbol": [fill_event.full_symbol],
+                    },
+                    index=[fill_event.fill_time],
+                ),
+            ]
         )
 
     def update_performance(

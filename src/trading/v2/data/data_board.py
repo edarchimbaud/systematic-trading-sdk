@@ -76,9 +76,9 @@ class DataBoard:
         if symbol in self._hist_data_dict:
             return self._hist_data_dict[symbol].loc[timestamp, "Close"]
         if (
-            symbol[:-5] in self._hist_data_dict
-        ):  # FUT root symbol e.g. CL, -5 assumes CLZ2020
-            return self._hist_data_dict[symbol[:-5]].loc[
+            symbol.split("^")[0][:-2] in self._hist_data_dict
+        ):  # FUT root symbol e.g. CL, -5 assumes CLG0^9
+            return self._hist_data_dict[symbol.split("^")[0][:-2]].loc[
                 timestamp, symbol
             ]  # column series up to timestamp inclusive
         return None

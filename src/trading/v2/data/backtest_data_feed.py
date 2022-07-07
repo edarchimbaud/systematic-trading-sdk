@@ -55,8 +55,7 @@ class BacktestDataFeed(DataFeedBase):
                 self._data_stream = self._data_stream[
                     self._data_stream >= self._start_date
                 ]
-
-        self._data_stream_iter = self._data_stream.iter()
+        self._data_stream_iter = iter(self._data_stream)
 
     def unsubscribe_market_data(self, symbols=None):
         """

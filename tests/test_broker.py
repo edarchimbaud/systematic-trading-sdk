@@ -2,7 +2,7 @@
 Copyright edarchimbaud
 """
 from datetime import date
-from trading.data.constants import FUTURE_TYPE
+from trading.utils.constants import FUTURE_TYPE
 from trading.models.broker import Broker
 from trading.models.contract import Contract
 

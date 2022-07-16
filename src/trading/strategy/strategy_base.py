@@ -5,9 +5,9 @@ from abc import ABCMeta
 from datetime import datetime
 import logging
 
-from trading.v2.data.data_board import DataBoard
+from trading.data.data_board import DataBoard
 
-from trading.v2.strategy.strategy_manager import StrategyManager
+from trading.strategy.strategy_manager import StrategyManager
 
 from ..data.tick_event import TickEvent
 from ..order.fill_event import FillEvent

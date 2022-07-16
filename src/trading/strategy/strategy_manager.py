@@ -3,9 +3,9 @@ Strategy manager.
 """
 import logging
 from datetime import datetime, timedelta
-from trading.v2.order.fill_event import FillEvent
+from trading.order.fill_event import FillEvent
 
-from trading.v2.position.position import Position
+from trading.position.position import Position
 
 from ..brokerage.backtest_brokerage import BacktestBrokerage
 from ..data.data_board import DataBoard

@@ -10,9 +10,9 @@ import warnings
 
 with warnings.catch_warnings():
     warnings.filterwarnings(
-        'ignore',
-        'axes.color_cycle is deprecated',
+        "ignore",
+        "axes.color_cycle is deprecated",
         UserWarning,
-        'matplotlib',
+        "matplotlib",
     )
     from seaborn import *  # noqa

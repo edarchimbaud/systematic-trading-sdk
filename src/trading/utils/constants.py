@@ -3,7 +3,7 @@ Definition of the constants of the module
 """
 from methodtools import lru_cache
 
-from .client import Client, UPDATE_LAST_MODIFIED as update_last_modified
+from ..v2.data.client import Client
 
 REMOVE_EMPTY = "remove-empty"
 
@@ -18,8 +18,6 @@ def get_futures():
     futures, _ = Client().get_tickers()
     return futures
 
-
-UPDATE_LAST_MODIFIED = update_last_modified
 
 LETTERS = ["F", "G", "H", "J", "K", "M", "N", "Q", "U", "V", "X", "Z"]
 

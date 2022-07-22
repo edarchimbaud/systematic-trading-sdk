@@ -5,7 +5,7 @@ from datetime import date
 import os
 
 import pandas as pd
-from .data.marketdata_client import MarketDataClient
+from .datasets import MarketDataClient
 
 
 def load_futures_chain(ticker: str, asofdate: date) -> pd.DataFrame:

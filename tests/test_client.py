@@ -2,7 +2,7 @@
 Copyright edarchimbaud
 """
 from datetime import date
-from trading.data.marketdata_client import Client
+from trading.datasets import Client
 
 
 def test_get_daily_factor_carry_bond(snapshot):

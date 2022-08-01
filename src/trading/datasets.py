@@ -1,5 +1,5 @@
 """
-Client for the API https://datasets.systematictrading.edarchimbaud.com
+Client for the API https://datasets.systematic-trading.edarchimbaud.com
 """
 import re
 
@@ -9,12 +9,18 @@ import requests
 
 class Datasets:
     """
-    Client for the API https://datasets.systematictrading.edarchimbaud.com
+    Client for the API https://datasets.systematic-trading.edarchimbaud.com/api
     """
+
+    def __init__(self):
+        self._url_root = "https://datasets.systematic-trading.edarchimbaud.com/api"
+
 
     @staticmethod
     def __format_response(response: requests.Response) -> pd.DataFrame:
         response_json = response.json()
+        if response_json.get("detail") == "Not found":
+            raise Exception("Endpoint not found.")
         error = response_json["error"]
         if error is not None:
             raise Exception(error)
@@ -63,9 +69,8 @@ class Datasets:
             raise ValueError("Ticker is required for historical and live datasets.")
         if url == "/instruments" and ticker is not None:
             print("Ticker is not required for instruments dataset.")
-        url_root = "https://datasets.systematictrading.edarchimbaud.com"
         response = requests.get(
-            url_root + url,
+            self._url_root + url,
             params={"ticker": ticker} if ticker else None,
         )
         return self.__format_response(response)

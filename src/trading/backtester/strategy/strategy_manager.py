@@ -3,16 +3,15 @@ Strategy manager.
 """
 import logging
 from datetime import datetime, timedelta
-from trading.order.fill_event import FillEvent
-
-from trading.position.position import Position
 
 from ..brokerage.backtest_brokerage import BacktestBrokerage
 from ..data.data_board import DataBoard
 from ..data.tick_event import TickEvent
+from ..order.fill_event import FillEvent
 from ..order.order_event import OrderEvent
 from ..order.order_manager import OrderManager
 from ..order.order_status import OrderStatus
+from ..position.position import Position
 from ..position.position_manager import PositionManager
 from ..risk.risk_manager import RiskManager
 

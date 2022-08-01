@@ -5,16 +5,14 @@ from abc import ABCMeta
 from datetime import datetime
 import logging
 
-from trading.data.data_board import DataBoard
-
-from trading.strategy.strategy_manager import StrategyManager
-
+from ..data.data_board import DataBoard
 from ..data.tick_event import TickEvent
 from ..order.fill_event import FillEvent
 from ..order.order_event import OrderEvent
 from ..order.order_type import OrderType
 from ..order import OrderManager
 from ..position import PositionManager
+from ..strategy.strategy_manager import StrategyManager
 
 _logger = logging.getLogger(__name__)
 
